@@ -1,0 +1,2298 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Albatros ERP</title>
+<style>
+:root{
+  --bg:#f4f6f8; --card:#ffffff; --line:#e3e8ee; --ink:#1f2937; --dim:#6b7280;
+  --brand:#0f766e; --brand-soft:#e6f4f1; --danger:#b91c1c; --danger-soft:#fdeaea;
+  --new:#92400e; --new-soft:#fef3c7; --done:#065f46; --done-soft:#d1fae5;
+  --radius:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,"Noto Sans Thai",sans-serif;
+  font-size:15px;line-height:1.55}
+button{font:inherit;color:inherit}
+
+.wrap{display:flex;min-height:100vh}
+.side{width:200px;flex:none;background:var(--card);border-right:1px solid var(--line);padding:16px 10px}
+.brand{font-weight:700;font-size:17px;padding:4px 10px 14px;color:var(--brand)}
+.tab{display:flex;align-items:center;gap:9px;width:100%;padding:9px 10px;margin-bottom:3px;
+  background:none;border:0;border-radius:var(--radius);cursor:pointer;text-align:left}
+.tab:hover{background:var(--bg)}
+.tab.on{background:var(--brand-soft);color:var(--brand);font-weight:600}
+.main{flex:1;padding:22px 26px;min-width:0}
+
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:16px}
+.h1{font-size:21px;font-weight:700;margin:0}
+.sub{color:var(--dim);font-size:13px;margin-top:2px}
+.btn{background:var(--brand);color:#fff;border:0;border-radius:var(--radius);
+  padding:9px 15px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto;overflow-y:hidden;margin-bottom:16px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th,.tbl td{padding:10px 13px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.tbl th{background:var(--bg);color:var(--dim);font-weight:600;font-size:12.5px;white-space:nowrap}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl .act{text-align:right;white-space:nowrap}
+
+.lnk{background:none;border:0;padding:2px 6px;margin-left:2px;cursor:pointer;
+  color:var(--brand);font-size:13.5px;border-radius:6px}
+.lnk:hover{background:var(--brand-soft)}
+.lnk.del{color:var(--danger)}
+.lnk.del:hover{background:var(--danger-soft)}
+
+.chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12.5px;font-weight:600}
+.c-ใหม่{background:var(--new-soft);color:var(--new)}
+.c-เสร็จ{background:var(--done-soft);color:var(--done)}
+.c-ปิด{background:var(--bg);color:var(--dim);border:1px solid var(--line)}
+.c-เกิน{background:var(--danger-soft);color:var(--danger)}
+.neg{color:var(--danger)}
+
+.kpis{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.kpi{flex:1 1 220px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.kpi .lbl{margin-bottom:6px}
+.kpi b{font-size:23px;font-variant-numeric:tabular-nums;display:block}
+.big{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px;margin-bottom:16px;font-size:16px;line-height:1.7}
+.big b{font-size:19px;font-variant-numeric:tabular-nums}
+
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.bar .inp{width:auto}
+.bar .lbl{margin-bottom:0;display:flex;align-items:center;gap:5px}
+
+.empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--radius);
+  padding:44px 20px;text-align:center;color:var(--dim)}
+.note{background:var(--new-soft);color:var(--new);border-radius:var(--radius);
+  padding:9px 12px;font-size:13px;margin-bottom:12px}
+
+.mask{position:fixed;inset:0;background:rgba(17,24,39,.45);display:flex;
+  align-items:center;justify-content:center;padding:18px;z-index:50}
+.mbox{background:var(--card);border-radius:var(--radius);width:100%;max-width:560px;
+  max-height:90vh;display:flex;flex-direction:column}
+.mhead{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px solid var(--line);font-weight:700}
+.mbody{padding:16px;overflow:auto}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;margin:16px -16px -16px;
+  padding:12px 16px;border-top:1px solid var(--line);background:var(--bg)}
+.fld{margin-bottom:12px}
+.lbl{display:block;font-size:13px;color:var(--dim);margin-bottom:4px}
+.inp{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+  background:var(--card);color:var(--ink);font:inherit}
+
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
+  background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:14px;
+  display:none;z-index:80;max-width:90%;text-align:center;white-space:pre-line}
+
+#print{display:none}
+.slip{width:180mm;padding:6mm 0;color:#000}
+.slip h2{margin:0 0 2mm;font-size:19px}
+.slip .meta{font-size:13px;color:#444;margin-bottom:6mm}
+.slip table{width:100%;border-collapse:collapse;font-size:14px}
+.slip td{padding:3.2mm 0;border-bottom:1px solid #ddd}
+.slip td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.slip .tot td{font-weight:700;font-size:16px;border-top:2px solid #000;border-bottom:0}
+.slip .foot{margin-top:9mm;font-size:12px;color:#555}
+
+@media print{
+  @page{size:A4;margin:14mm}
+  body.printing>*:not(#print){display:none!important}
+  body.printing #print{display:block!important}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal"></div>
+<div id="confirm"></div>
+<div id="toast" class="toast"></div>
+<div id="print"></div>
+
+<script>
+/* ============================================================
+   Albatros ERP — HR + ค่าคอม (โครงจาก โรงเตี๊ยมERP-พี่ปุ้ย)
+   อัตราหัก — เลขตัวอย่างเท่านั้น ประกาศที่เดียวบนสุด
+   ต้องเช็กอัตราปีปัจจุบันจากประกันสังคม/สรรพากรเองทุกครั้ง
+   ============================================================ */
+const SSO_RATE = 0.05, SSO_CAP = 750;   // ค่าเริ่มต้น — ตรวจอัตราจริงทุกปี (แก้ได้ที่แท็บตั้งค่า)
+const OT_MULT  = 1.5;                    // OT วันธรรมดา (ส่วนเกิน 8 ชม.)
+const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด ×2 ทั้งชั่วโมง
+const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
+
+/* ===== db เป็น SSOT ===== */
+const APP_VER = "b15";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const DB_KEY = "albatrosERP.db.v6";   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
+
+/* ── Supabase (เปิดใช้ 1 ก.ย. 2569) ──
+   ก้อนข้อมูลกลางของทุกเครื่อง · localStorage เหลือหน้าที่เป็นแคช+โหมดออฟไลน์
+   คีย์เป็นแบบ publishable (ออกแบบให้อยู่ในหน้าเว็บได้) · RLS ฝั่ง Supabase กันไว้:
+   ไม่ล็อกอิน = อ่าน/เขียนอะไรไม่ได้เลย */
+const SUPABASE_URL = "https://hcnyqlskwzbjgroyzjjx.supabase.co";
+const SUPABASE_KEY = "sb_publishable_XBpPT8yrgzQeEm0hskFNmQ_tc2MoCsl";
+
+const DEF_SETTINGS = {
+  branch: "โคราช",
+  rates: {
+    pool:    { "Ceramic+":200, "Graphene":500, "SuperResin":1000, "ฟิล์มเต็มคัน":1300, "อื่นๆ":0 },
+    special: { "ฟิล์มเต็มคัน":1200, "SetA":100, "SetB":200, "SetC":300, "ผิวส้ม":500 },
+    // สัดส่วนแบ่งกองกลางเปลี่ยนตามช่วงเวลา — techShare/asstShare คือค่าฐาน (ประวัติก่อน ส.ค. 2569)
+    // shareChanges ทับตามเดือน (from = "YYYY-MM" เดือนแรกที่มีผล) เพื่อไม่ให้เดือนเก่าที่จ่ายแล้วเพี้ยน
+    shareChanges: [ { from:"2026-08", techShare:0.30, asstShare:0.70 } ],
+    techShare: 0.4,       // ส่วนช่างจากกองกลาง (ฐาน — ใช้กับเดือนก่อน shareChanges)
+    asstShare: 0.6,       // ส่วนผู้ช่วยจากกองกลาง
+    percentRate: 0.01     // ผู้ช่วยพิเศษ (หมวย) % ของยอดขายทั้งวัน
+  },
+  ssoRate: SSO_RATE, ssoCap: SSO_CAP, otMult: OT_MULT, otHolidayMult: OT_HOLIDAY_MULT
+};
+const DB_DEF = { staff:[], leaves:[], hrdocs:[], attendance:[], payrolls:[],
+                 advances:[], money:[], jobs:[], settings: DEF_SETTINGS };
+
+function persistRead(){ return localStorage.getItem(DB_KEY); }
+function persistWrite(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); if(typeof cloudSchedulePush==="function") cloudSchedulePush(); }
+
+/* ============================================================
+   ชั้น cloud (Supabase REST ล้วน — ไม่ใช้ไลบรารีนอก ไม่มีของโหลดช้า)
+   - ล็อกอินอีเมล+รหัส (สร้าง user ในแดชบอร์ด Supabase: Authentication → Users → Add user)
+   - เปิดแอป: ดึงทุกตาราง → สร้าง db → localStorage เป็นแคช
+   - ทุก save(): เทียบกับ snapshot ล่าสุด → ส่งเฉพาะ record ที่เปลี่ยน (debounce 800ms)
+   - cloud ว่าง + เครื่องมีข้อมูล → ถามอัปโหลดครั้งแรก
+   - เปิดจากหน้า artifact (CSP บล็อกเน็ต) → ตกโหมดออฟไลน์อัตโนมัติ ไม่พัง
+   ============================================================ */
+const SB_TABLES = ["staff","attendance","jobs","advances","payrolls","leaves","hrdocs","money"];
+const SB_SESS_KEY = "albatrosERP.session";
+const cloudOn = !!(SUPABASE_URL && SUPABASE_KEY);
+let cloudStatus = cloudOn ? "login" : "off";   // off | login | sync | ok | err | offline
+let cloudMsg = "";
+let sbSession = null;
+try { sbSession = JSON.parse(localStorage.getItem(SB_SESS_KEY)) || null; } catch(e){}
+let __snap = null;         // {table:{id:jsonString}} สภาพล่าสุดที่ตรงกับ cloud
+let __pushTimer = null, __pushing = false, __pushAgain = false;
+
+function cloudChip(){
+  const map = { off:["", ""], login:["ยังไม่ล็อกอิน cloud — กดที่นี่","c-ใหม่"], sync:["กำลังซิงค์…","c-ใหม่"],
+                ok:["cloud ซิงค์แล้ว ✓","c-เสร็จ"], err:["cloud ผิดพลาด — กดซิงค์ใหม่","c-เกิน"],
+                offline:["โหมดออฟไลน์","c-ปิด"] };
+  const m = map[cloudStatus] || ["",""];
+  if(!m[0]) return "";
+  return '<div style="padding:0 10px 10px"><span class="chip '+m[1]+'" style="cursor:pointer" onclick="cloudChipClick()">'+m[0]+'</span></div>';
+}
+function cloudChipClick(){
+  if(cloudStatus==="login") openCloudLogin();
+  else if(cloudStatus==="err" || cloudStatus==="ok") cloudPull(true);
+}
+function setCloud(st, msg){ cloudStatus = st; cloudMsg = msg||""; const el=document.getElementById("app"); if(el) render(); }
+
+async function sbReq(path, opts, retry){
+  opts = opts || {};
+  opts.headers = Object.assign({ "apikey": SUPABASE_KEY, "Content-Type": "application/json" }, opts.headers||{});
+  if(sbSession && sbSession.access_token) opts.headers["Authorization"] = "Bearer " + sbSession.access_token;
+  const res = await fetch(SUPABASE_URL + path, opts);
+  if(res.status===401 && !retry && sbSession && sbSession.refresh_token){
+    const ok = await sbRefresh();
+    if(ok) return sbReq(path, opts, true);
+  }
+  return res;
+}
+async function sbLogin(email, password){
+  const res = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=password", {
+    method:"POST", headers:{ "apikey":SUPABASE_KEY, "Content-Type":"application/json" },
+    body: JSON.stringify({ email, password }) });
+  const j = await res.json();
+  if(!res.ok || !j.access_token) throw new Error(j.error_description || j.msg || "ล็อกอินไม่สำเร็จ");
+  sbSession = { access_token:j.access_token, refresh_token:j.refresh_token, email:(j.user&&j.user.email)||email };
+  localStorage.setItem(SB_SESS_KEY, JSON.stringify(sbSession));
+}
+async function sbRefresh(){
+  try{
+    const res = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token", {
+      method:"POST", headers:{ "apikey":SUPABASE_KEY, "Content-Type":"application/json" },
+      body: JSON.stringify({ refresh_token: sbSession.refresh_token }) });
+    const j = await res.json();
+    if(!res.ok || !j.access_token){ sbSession=null; localStorage.removeItem(SB_SESS_KEY); return false; }
+    sbSession = { access_token:j.access_token, refresh_token:j.refresh_token, email:(j.user&&j.user.email)||sbSession.email };
+    localStorage.setItem(SB_SESS_KEY, JSON.stringify(sbSession));
+    return true;
+  }catch(e){ return false; }
+}
+function cloudLogout(){
+  sbSession = null; localStorage.removeItem(SB_SESS_KEY);
+  __snap = null; setCloud("login");
+  notify("ออกจากระบบ cloud แล้ว — ข้อมูลในเครื่องยังอยู่ครบ");
+}
+
+async function sbFetchTable(t){
+  const out = [];
+  for(let from=0;;from+=1000){
+    const res = await sbReq("/rest/v1/"+t+"?select=id,data&order=created_at.asc", {
+      headers:{ "Range": from+"-"+(from+999), "Range-Unit":"items", "Prefer":"count=exact" } });
+    if(!res.ok) throw new Error(t+" อ่านไม่ได้ ("+res.status+")");
+    const rows = await res.json();
+    rows.forEach(r=>out.push(r));
+    if(rows.length < 1000) break;
+  }
+  return out;
+}
+function snapFrom(d){
+  const s = {};
+  SB_TABLES.forEach(t=>{ s[t]={}; (d[t]||[]).forEach(r=>{ s[t][r.id]=JSON.stringify(r); }); });
+  s.__settings = JSON.stringify(d.settings||{});
+  return s;
+}
+async function sbUpsert(t, rows){
+  for(let i=0;i<rows.length;i+=200){
+    const res = await sbReq("/rest/v1/"+t, { method:"POST",
+      headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify(rows.slice(i,i+200).map(r=>({ id:r.id, data:r }))) });
+    if(!res.ok) throw new Error(t+" เขียนไม่ได้ ("+res.status+")");
+  }
+}
+async function sbDeleteIds(t, ids){
+  for(let i=0;i<ids.length;i+=100){
+    const list = ids.slice(i,i+100).map(x=>'"'+x+'"').join(",");
+    const res = await sbReq("/rest/v1/"+t+"?id=in.("+list+")", { method:"DELETE", headers:{ "Prefer":"return=minimal" } });
+    if(!res.ok) throw new Error(t+" ลบไม่ได้ ("+res.status+")");
+  }
+}
+async function sbSaveSettings(){
+  const res = await sbReq("/rest/v1/app_settings", { method:"POST",
+    headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify([{ id:"main", data: db.settings }]) });
+  if(!res.ok) throw new Error("settings เขียนไม่ได้ ("+res.status+")");
+}
+
+/* ดึงทั้งหมดจาก cloud → ใช้เป็นความจริง (cloud ว่าง+เครื่องมีของ → ถามอัปโหลดครั้งแรก) */
+async function cloudPull(manual){
+  if(!cloudOn || !sbSession) return;
+  setCloud("sync");
+  try{
+    const cloud = {};
+    for(const t of SB_TABLES) cloud[t] = await sbFetchTable(t);
+    const setRes = await sbReq("/rest/v1/app_settings?id=eq.main&select=data");
+    const setRows = setRes.ok ? await setRes.json() : [];
+    const total = SB_TABLES.reduce((n,t)=>n+cloud[t].length,0);
+    const localTotal = SB_TABLES.reduce((n,t)=>n+(db[t]||[]).length,0);
+    if(total===0 && localTotal>0){
+      setCloud("ok");
+      appConfirm("Cloud ยังว่างเปล่า แต่เครื่องนี้มีข้อมูลอยู่ ("+localTotal+" รายการ)\nอัปโหลดข้อมูลเครื่องนี้ขึ้น cloud เป็นก้อนตั้งต้นเลยไหม?", ()=>{ cloudPushAll(); }, "อัปโหลดขึ้น cloud");
+      return;
+    }
+    SB_TABLES.forEach(t=>{ db[t] = cloud[t].map(r=>r.data); });
+    if(setRows.length){
+      db.settings = Object.assign(JSON.parse(JSON.stringify(DEF_SETTINGS)), setRows[0].data||{});
+      db.settings.rates = Object.assign(JSON.parse(JSON.stringify(DEF_SETTINGS.rates)), (setRows[0].data||{}).rates||{});
+    }
+    localStorage.setItem(DB_KEY, JSON.stringify(db));   // แคชตรงๆ ไม่ผ่าน persistWrite (กัน push วน)
+    __snap = snapFrom(db);
+    setCloud("ok");
+    if(manual) notify("ซิงค์จาก cloud เรียบร้อย ("+total+" รายการ)");
+  }catch(e){
+    setCloud(navigator.onLine===false ? "offline" : "err", String(e.message||e));
+    if(manual) notify("ซิงค์ไม่สำเร็จ: "+(e.message||e));
+  }
+}
+async function cloudPushAll(){
+  setCloud("sync");
+  try{
+    for(const t of SB_TABLES) if((db[t]||[]).length) await sbUpsert(t, db[t]);
+    await sbSaveSettings();
+    __snap = snapFrom(db);
+    setCloud("ok");
+    notify("อัปโหลดข้อมูลขึ้น cloud ครบแล้ว — ทุกเครื่องที่ล็อกอินจะเห็นก้อนเดียวกัน");
+  }catch(e){ setCloud("err", String(e.message||e)); notify("อัปโหลดไม่สำเร็จ: "+(e.message||e)); }
+}
+/* ส่งเฉพาะส่วนต่างหลัง save() — debounce + กันซ้อน */
+function cloudSchedulePush(){
+  if(!cloudOn || !sbSession || !__snap) return;
+  clearTimeout(__pushTimer);
+  __pushTimer = setTimeout(cloudPushDiff, 800);
+}
+async function cloudPushDiff(){
+  if(!cloudOn || !sbSession || !__snap) return;
+  if(__pushing){ __pushAgain = true; return; }
+  __pushing = true;
+  try{
+    for(const t of SB_TABLES){
+      const cur = {}; (db[t]||[]).forEach(r=>{ cur[r.id]=JSON.stringify(r); });
+      const ups = [], dels = [];
+      Object.keys(cur).forEach(id=>{ if(__snap[t][id]!==cur[id]) ups.push(JSON.parse(cur[id])); });
+      Object.keys(__snap[t]).forEach(id=>{ if(!(id in cur)) dels.push(id); });
+      if(ups.length) await sbUpsert(t, ups);
+      if(dels.length) await sbDeleteIds(t, dels);
+      __snap[t] = cur;
+    }
+    const setStr = JSON.stringify(db.settings||{});
+    if(setStr !== __snap.__settings){ await sbSaveSettings(); __snap.__settings = setStr; }
+    if(cloudStatus!=="ok") setCloud("ok");
+  }catch(e){ setCloud("err", String(e.message||e)); }
+  __pushing = false;
+  if(__pushAgain){ __pushAgain = false; cloudSchedulePush(); }
+}
+
+/* หน้าล็อกอิน cloud */
+function openCloudLogin(){
+  openModal("เข้าสู่ระบบ Cloud",
+    '<div class="note">ใช้อีเมล+รหัสที่สร้างไว้ในแดชบอร์ด Supabase (Authentication → Users → Add user)<br>'
+    + 'ล็อกอินครั้งเดียวต่อเครื่อง — ทุกเครื่องที่ล็อกอินเห็นข้อมูลก้อนเดียวกัน</div>'
+    + fld("อีเมล", '<input class="inp" type="email" id="cl-email" autocomplete="username">')
+    + fld("รหัสผ่าน", '<input class="inp" type="password" id="cl-pass" autocomplete="current-password">')
+    + '<div id="cl-err" class="sub" style="color:var(--danger)"></div>'
+    + '<div class="mfoot"><button class="btn ghost" onclick="closeModal()">ใช้ออฟไลน์ไปก่อน</button>'
+    + '<button class="btn" onclick="doCloudLogin()">เข้าสู่ระบบ</button></div>');
+}
+async function doCloudLogin(){
+  const em = val("cl-email").trim(), pw = val("cl-pass");
+  if(!em || !pw){ document.getElementById("cl-err").textContent = "กรอกอีเมลและรหัสผ่านก่อนครับ"; return; }
+  document.getElementById("cl-err").textContent = "กำลังเข้าสู่ระบบ…";
+  try{
+    await sbLogin(em, pw);
+    closeModal();
+    notify("ล็อกอินสำเร็จ — กำลังดึงข้อมูลจาก cloud");
+    await cloudPull(true);
+  }catch(e){
+    const el = document.getElementById("cl-err");
+    if(el) el.textContent = "เข้าไม่ได้: " + (String(e.message).includes("Invalid") ? "อีเมลหรือรหัสไม่ถูกต้อง" : e.message);
+  }
+}
+/* เปิดแอป: มี session → ดึงเลย · ไม่มี → โชว์ล็อกอิน (ปิดได้ = ออฟไลน์) · fetch ใช้ไม่ได้ (artifact) → ออฟไลน์เงียบๆ */
+async function cloudBoot(){
+  if(!cloudOn) return;
+  try{
+    if(sbSession){ await cloudPull(false); }
+    else { setCloud("login"); openCloudLogin(); }
+  }catch(e){ setCloud("offline"); }
+}
+
+function load(){
+  const stored = persistRead();
+  if(!stored) return seedDb();
+  let d;
+  try{ d = Object.assign(JSON.parse(JSON.stringify(DB_DEF)), JSON.parse(stored) || {}); }
+  catch(e){ return JSON.parse(JSON.stringify(DB_DEF)); }
+  // settings ผสานลึก 1 ชั้น กัน key ใหม่หายตอนอัปเวอร์ชัน
+  d.settings = Object.assign(JSON.parse(JSON.stringify(DEF_SETTINGS)), d.settings || {});
+  d.settings.rates = Object.assign(JSON.parse(JSON.stringify(DEF_SETTINGS.rates)), d.settings.rates || {});
+  // migration ครั้งเดียว: record เช็คชื่อที่สร้างก่อนมีกติกา "อาทิตย์=วันหยุด" ธง holiday ค้างเป็น false
+  // → ตั้งธงให้ทุก record ที่เป็นวันอาทิตย์ (หลังจากนี้คุณโอติ๊กออกเองได้ ระบบไม่ยุ่งอีก)
+  if(!d.__migSunday1){
+    (d.attendance||[]).forEach(a=>{
+      if(a.date && new Date(a.date + "T00:00:00").getDay() === 0) a.holiday = true;
+    });
+    d.__migSunday1 = 1;
+  }
+  // รวม record เช็คชื่อซ้ำ (วัน+คนเดียวกันมีหลายแถว — เศษจากบั๊กติ๊กเด้งรุ่นก่อน):
+  // จอวาดจากแถวหนึ่งแต่บันทึกไปแก้อีกแถว → "บร เด้งไปโคราช / กดบันทึกซ้ำ OT หาย"
+  // รันทุกครั้งที่เปิด (idempotent) — ผสานค่าที่ดีที่สุดเข้าแถวเดียว
+  const seenAtt = {}, mergedAtt = [];
+  (d.attendance||[]).forEach(a=>{
+    const k = a.date + "|" + a.staffId;
+    const t = seenAtt[k];
+    if(!t){ seenAtt[k] = a; mergedAtt.push(a); return; }
+    if(!t.timeIn  && a.timeIn)  t.timeIn  = a.timeIn;
+    if(!t.timeOut && a.timeOut) t.timeOut = a.timeOut;
+    if((t.otManual===undefined || t.otManual==="" || !+t.otManual) && +a.otManual) t.otManual = a.otManual;
+    if(!t.branch && a.branch) t.branch = a.branch;
+    if(!t.role && a.role) t.role = a.role;
+    if(a.holiday) t.holiday = true;
+  });
+  d.attendance = mergedAtt;
+  return d;
+}
+function save(){ persistWrite(); }
+
+/* ข้อมูลตั้งต้น สาขาโคราช — พนักงานจริง มิ.ย. 2569 (เงินเดือน = ฐาน+ขึ้นเงินเดือนรวมแล้ว) */
+function seedDb(){
+  const d = JSON.parse(JSON.stringify(DB_DEF));
+  const mk = (name, role, salary, houseAllow, commissionRole, bankName, bankNo, acctName) =>
+    ({ id:uid(), status:"active", name, role, salary, houseAllow, commissionRole,
+       branch:"โคราช", position:role, dept:"", phoneInt:"", startDate:"", nationalId:"", address:"",
+       bankName:bankName||"", bankNo:bankNo||"", acctName:acctName||"" });
+  d.staff = [   // ชื่อ/เงินเดือนตามชีตค่าคอมทั้งปี + ชีตเงินเดือน ก.ค. 2569 · บัญชีตามที่คุณโอส่ง 31 ส.ค. 2569
+    mk("หม่าว","ช่าง",0,0,"special"),
+    mk("ปอนด์","ผู้ช่วย",0,0,"pool"),   // ส.ค. 2569 ปรับจากช่างเป็นผู้ช่วย (ประวัติ มิ.ย.-ก.ค. ล็อกด้วย role ใน attendance)
+    mk("หวาน","ช่าง",0,0,"pool"),
+    mk("หมวย","ผู้ช่วย",0,0,"percent"),
+    mk("บี","ผู้ช่วย",0,0,"pool"),
+    mk("พลอย","ผู้ช่วย",0,0,"pool"),
+    mk("บิ๊ก","ผู้ช่วย",0,0,"pool"),
+    mk("แจ็ค","ผู้ช่วย",0,0,"pool"),
+    mk("แมน","ผู้ช่วย",0,0,"pool"),
+    mk("แบงค์","ผู้ช่วย",0,0,"pool"),
+    mk("โอเว่น","ผู้ช่วย",0,0,"pool"),
+    mk("ฟีโน่","ผู้ช่วย",0,0,"pool"),
+    mk("เจต","ผู้ช่วย",0,0,"none"),
+    mk("นัน","ผู้ช่วย",0,0,"none"),
+    mk("แนนนี่","ผู้ช่วย",0,0,"none"),
+    // ชุดคุณโอส่ง 1 ก.ย. 2569 — ทีมบุรีรัมย์ (เงินเดือนยังไม่ได้ = 0 ยังไม่เข้างวด · โอ๋เป็นรายวัน)
+    mk("พี่ต๋อม","แอดมิน",0,0,"none"),
+    mk("โอ๋","ผู้ช่วย",0,0,"none"),
+    mk("ฟ้า","ผู้ช่วย",0,0,"pool")
+  ];
+  // สามคนนี้สังกัดบุรีรัมย์ (ฟ้าเป็นผู้ช่วยกองกลาง — ตัวหารฝั่งช่างต้องคงเป็นหม่าว+หวาน ตามคุณโอ)
+  d.staff.forEach(s=>{ if(["พี่ต๋อม","โอ๋","ฟ้า"].includes(s.name)) s.branch = "บุรีรัมย์"; });
+  // ประวัติ มิ.ย. 2569 (งานรถจาก Database3 + เช็คชื่อจากชีตค่าคอมจริง)
+  const byName = {}; d.staff.forEach(s=>{ byName[s.name] = s.id; });
+  d.jobs = SEED_HISTORY.jobs.map(j=>({ id:uid(), date:j.d, plate:j.p||"", carModel:j.c||"",
+    size:j.sz||"", customer:j.cu||"", phone:j.ph||"", program:j.pr, filmSet:j.fs,
+    amount:j.a, techId: j.t ? (byName["หม่าว"]||"") : "", note:"", source:"db3", branch:"โคราช" }));
+  const roleByName = {}; d.staff.forEach(s=>{ roleByName[s.name] = s.role; });
+  Object.keys(SEED_HISTORY.att).forEach(date=>{
+    SEED_HISTORY.att[date].forEach(nm=>{
+      if(!byName[nm]) return;
+      // ตำแหน่ง ณ วันนั้น: ปอนด์เป็น "ช่าง" ถึง ก.ค. 2569 (ส.ค. ถูกปรับเป็นผู้ช่วย) — ประวัติต้องไม่เพี้ยน
+      const histRole = (nm==="ปอนด์" && date < "2026-08-01") ? "ช่าง" : roleByName[nm];
+      d.attendance.push({ id:uid(), staffId:byName[nm], date, timeIn:"", timeOut:"", holiday:false, role:histRole });
+    });
+  });
+  return d;
+}
+/*SEED_HISTORY_START*/
+const SEED_HISTORY = { jobs: [], att: {} };   // build สาธารณะ: ข้อมูลจริงอยู่ใน cloud
+/*SEED_HISTORY_END*/
+
+/* ===== helper ===== */
+function uid(){ return Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function baht(n){ return (+n||0).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function todayStr(){ const d=new Date(),p=x=>String(x).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+const TH_MON = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+function thDate(s){
+  if(!s) return "—";
+  const p = String(s).split("-"); if(p.length<3) return esc(s);
+  return (+p[2]) + " " + TH_MON[(+p[1])-1] + " " + ((+p[0])+543);
+}
+function thMonth(s){
+  if(!s) return "—";
+  const p = String(s).split("-"); if(p.length<2) return esc(s);
+  return TH_MON[(+p[1])-1] + " " + ((+p[0])+543);
+}
+function monthOf(d){ return String(d||"").slice(0,7); }
+function curMonth(){ return todayStr().slice(0,7); }
+function beMonth(p){ const a=String(p||"").split("-"); return a.length<2 ? p : ((+a[0])+543)+"-"+a[1]; }
+
+function head(t, sub, fn){
+  return '<div class="head"><div><h1 class="h1">'+esc(t)+'</h1><div class="sub">'+esc(sub)+'</div></div>'
+    + (fn ? '<button class="btn" onclick="'+fn+'(\'\')">+ เพิ่ม</button>' : '') + '</div>';
+}
+function empty(msg){ return '<div class="empty">'+esc(msg)+'</div>'; }
+function chip(text, cls){ return '<span class="chip '+cls+'">'+esc(text)+'</span>'; }
+function lnk(text, fn, cls){ return '<button class="lnk'+(cls?" "+cls:"")+'" onclick="'+fn+'">'+esc(text)+'</button>'; }
+function tbl(cols, rows){
+  const th = cols.map(c=>'<th'+(c.c?' class="'+c.c+'"':'')+'>'+esc(c.t||"")+'</th>').join("");
+  const tr = rows.map(r=>'<tr>'+r.map((cell,i)=>'<td'+(cols[i]&&cols[i].c?' class="'+cols[i].c+'"':'')+'>'+cell+'</td>').join("")+'</tr>').join("");
+  return '<div class="card"><table class="tbl"><thead><tr>'+th+'</tr></thead><tbody>'+tr+'</tbody></table></div>';
+}
+function fld(label, html){ return '<div class="fld"><label class="lbl">'+esc(label)+'</label>'+html+'</div>'; }
+function openModal(t, html){
+  document.getElementById("modal").innerHTML =
+    '<div class="mask" onclick="if(event.target===this)closeModal()"><div class="mbox">'
+    + '<div class="mhead"><span>'+esc(t)+'</span><button class="lnk" onclick="closeModal()">✕</button></div>'
+    + '<div class="mbody">'+html+'</div></div></div>';
+}
+function closeModal(){ document.getElementById("modal").innerHTML = ""; }
+function mfoot(fn, id, label){
+  return '<div class="mfoot"><button class="btn ghost" onclick="closeModal()">ยกเลิก</button>'
+    + '<button class="btn" onclick="'+fn+'(\''+(id||"")+'\')">'+esc(label||"บันทึก")+'</button></div>';
+}
+/* ── กล่องยืนยัน + toast ของแอปเอง ──
+   ⚠️ ห้ามใช้กล่องยืนยัน/แจ้งเตือนดั้งเดิมของเบราว์เซอร์ — หน้า artifact (sandbox) บล็อกทั้งคู่:
+   confirm คืน false เงียบๆ ทำให้ปุ่มยืนยัน "กดแล้วไม่เกิดอะไร" (บั๊กจริงที่คุณโอเจอ 1 ก.ย.) */
+let __confirmFn = null;
+function appConfirm(msg, fn, okLabel){
+  __confirmFn = fn;
+  document.getElementById("confirm").innerHTML =
+    '<div class="mask" style="z-index:70" onclick="if(event.target===this)closeConfirm()"><div class="mbox" style="max-width:420px">'
+    + '<div class="mbody" style="white-space:pre-line">'+esc(msg)+'</div>'
+    + '<div class="mfoot"><button class="btn ghost" onclick="closeConfirm()">ยกเลิก</button>'
+    + '<button class="btn" onclick="okConfirm()">'+esc(okLabel||"ยืนยัน")+'</button></div></div></div>';
+}
+function closeConfirm(){ __confirmFn = null; document.getElementById("confirm").innerHTML = ""; }
+function okConfirm(){ const f = __confirmFn; closeConfirm(); if(f) f(); }
+function notify(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.style.display = "block";
+  clearTimeout(el._t); el._t = setTimeout(()=>{ el.style.display = "none"; }, 3500);
+}
+
+function delRow(key, id){
+  appConfirm("ลบรายการนี้?", ()=>{ db[key] = db[key].filter(r=>r.id!==id); save(); render(); }, "ลบ");
+}
+function val(id){ const el=document.getElementById(id); return el ? el.value : ""; }
+function boldAmt(n){ return '<b class="'+((+n)<0?"neg":"")+'">'+baht(n)+'</b>'; }
+
+function csvCell(v){
+  const s = String(v==null ? "" : v);
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+function csvDownload(name, rows){
+  const body = "﻿" + rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
+  const blob = new Blob([body], { type:"text/csv;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function addMoney(dir, amount, note, date){
+  db.money.unshift({ id:uid(), date:date||todayStr(), dir, amount:+amount||0, note:note||"" });
+  save();
+}
+
+/* ===== registry ===== */
+const MODULES = [];
+let ACTIVE = "";
+function registerModule(m){ MODULES.push(m); if(!ACTIVE) ACTIVE = m.key; }
+function go(key){ ACTIVE = key; render(); }
+function render(){
+  const m = MODULES.find(x=>x.key===ACTIVE) || MODULES[0];
+  document.getElementById("app").innerHTML =
+    '<div class="wrap"><div class="side"><div class="brand">Albatros ERP'
+    + '<div class="sub" style="font-size:10.5px;font-weight:400">เวอร์ชัน '+APP_VER+'</div></div>'
+    + cloudChip()
+    + MODULES.map(x=>'<button class="tab'+(x.key===m.key?" on":"")+'" onclick="go(\''+x.key+'\')"><span>'+x.ic+'</span><span>'+esc(x.label)+'</span></button>').join("")
+    + '</div><div class="main">'+m.render()+'</div></div>';
+}
+
+let db = load();
+save();   // เขียน seed รอบแรกลงเครื่องทันที
+
+/* ============================================================
+   แท็บพนักงาน — ทะเบียน + ตำแหน่งช่าง/ผู้ช่วย + รูปแบบค่าคอม
+   ⚠️ currentRole เป็นแค่ "โหมดทดลองดู" กันมองข้ามไหล่ ยังไม่ใช่ระบบสิทธิ์จริง
+      ข้อมูลดิบยังอยู่ในเบราว์เซอร์เครื่องเดียวกัน ของจริงมาตอนขึ้นคลาวด์
+   ============================================================ */
+let currentRole  = "owner";          // UI เท่านั้น ไม่เก็บลง db
+let hideInactive = true;             // ตัวกรอง view อย่างเดียว ไม่แตะ db
+const peeked = { salary:{}, acct:{} };  // แถวที่กด "แสดง" ไว้ — UI เท่านั้น
+
+const STAFF_ROLES = ["ช่าง","ผู้ช่วย","แอดมิน"];   // แอดมิน = ไม่อยู่ในตัวหารกองกลาง (engine กรองเฉพาะ ช่าง/ผู้ช่วย)
+const COMM_ROLES = {
+  pool:    "กองกลาง (หารต่อหัว)",
+  special: "ช่างพิเศษ (คอมรายคัน)",
+  percent: "% ยอดขายทั้งวัน",
+  none:    "ไม่รับค่าคอม"
+};
+
+function setRole(v){ currentRole = v; render(); }
+function setHideInactive(v){ hideInactive = v; render(); }
+function togglePeek(kind, id){ peeked[kind][id] = !peeked[kind][id]; render(); }
+function peekCell(kind, id, real){
+  return peeked[kind][id]
+    ? esc(real) + lnk("ซ่อน", "togglePeek('"+kind+"','"+id+"')")
+    : "••••"    + lnk("แสดง", "togglePeek('"+kind+"','"+id+"')");
+}
+function peekInput(inputId, btn){
+  const el = document.getElementById(inputId); if(!el) return;
+  const hidden = el.type === "password";
+  el.type = hidden ? "text" : "password";
+  btn.textContent = hidden ? "ซ่อน" : "แสดง";
+}
+
+function renderStaff(){
+  const owner = currentRole === "owner";
+  let h = head("พนักงาน", "ทะเบียนพนักงานสาขา " + esc(db.settings.branch), "openStaffForm");
+  h += '<div class="bar"><span class="lbl">ดูในฐานะ</span>'
+    + '<select class="inp" onchange="setRole(this.value)">'
+    +   '<option value="owner"'+(owner?" selected":"")+'>เจ้าของ/HR</option>'
+    +   '<option value="staff"'+(owner?"":" selected")+'>พนักงานทั่วไป</option>'
+    + '</select>'
+    + '<label class="lbl"><input type="checkbox" onchange="setHideInactive(this.checked)"'
+    +   (hideInactive?" checked":"")+'> ซ่อนคนที่ปิดใช้งาน</label></div>';
+  if(!db.staff.length) return h + empty("ยังไม่มีพนักงาน กดปุ่ม + เพิ่ม เพื่อเพิ่มคนแรก");
+  const list = hideInactive ? db.staff.filter(s=>s.status!=="inactive") : db.staff;
+  if(!list.length) return h + empty('ไม่มีพนักงานที่ตรงกับตัวกรอง — เอาเครื่องหมายถูก "ซ่อนคนที่ปิดใช้งาน" ออกเพื่อดูทั้งหมด');
+  const cols = [{t:"ชื่อ"},{t:"ตำแหน่ง"},{t:"รูปแบบค่าคอม"},{t:"สาขา"}]
+    .concat(owner ? [{t:"เงินเดือน",c:"num"},{t:"ค่าบ้าน",c:"num"},{t:"บัญชีโอนเงิน"}] : [])
+    .concat([{t:"สถานะ"},{c:"act"}]);
+  const acctStr = s => !s.bankNo ? "—"
+    : (s.bankName ? s.bankName + " " : "") + s.bankNo + (s.acctName ? " · " + s.acctName : "");
+  const rows = list.map(s=>{
+    const r = [esc(s.name), esc(s.role||s.position||"—"), esc(COMM_ROLES[s.commissionRole]||"—"), esc(s.branch||"—")];
+    if(owner) r.push(peekCell("salary", s.id, baht(s.salary)), baht(s.houseAllow||0), peekCell("acct", s.id, acctStr(s)));
+    r.push(
+      s.status==="inactive" ? chip("พ้นสภาพ","c-ปิด") : chip("ทำงานอยู่","c-เสร็จ"),
+      lnk(s.status==="inactive" ? "เปิดใช้งาน" : "ปิดการใช้งาน", "toggleStaffActive('"+s.id+"')")
+      + lnk("แก้","openStaffForm('"+s.id+"')")
+      + (owner ? lnk("ลบถาวร","delStaff('"+s.id+"')","del") : "")
+    );
+    return r;
+  });
+  return h + tbl(cols, rows);
+}
+function openStaffForm(id){
+  const r = id ? db.staff.find(x=>x.id===id) : null;
+  const owner = currentRole === "owner";
+  const roleOpts = STAFF_ROLES.map(t=>'<option'+(r&&r.role===t?" selected":"")+'>'+t+'</option>').join("");
+  const commOpts = Object.keys(COMM_ROLES).map(k=>
+    '<option value="'+k+'"'+(r&&r.commissionRole===k?" selected":"")+'>'+COMM_ROLES[k]+'</option>').join("");
+  let body =
+    fld("ชื่อ", '<input class="inp" id="f-name" value="'+esc(r?r.name:"")+'">')
+    + fld("ตำแหน่ง", '<select class="inp" id="f-role">'+roleOpts+'</select>')
+    + fld("รูปแบบค่าคอม", '<select class="inp" id="f-comm">'+commOpts+'</select>')
+    + fld("สาขา", '<input class="inp" id="f-branch" value="'+esc(r?r.branch:db.settings.branch)+'">')
+    + fld("เบอร์ภายใน", '<input class="inp" id="f-phone" value="'+esc(r?r.phoneInt:"")+'">')
+    + fld("วันเริ่มงาน", '<input class="inp" type="date" id="f-start" value="'+esc(r?r.startDate:"")+'">');
+  if(owner){
+    body += fld("เงินเดือน (บาท/เดือน)",
+        '<input class="inp" type="password" inputmode="numeric" id="f-salary" value="'+(r?r.salary:"")+'">'
+        + '<button class="lnk" onclick="peekInput(\'f-salary\',this)">แสดง</button>')
+      + fld("ค่าบ้าน (บาท/เดือน)", '<input class="inp" type="number" id="f-house" value="'+(r?(r.houseAllow||0):0)+'">')
+      + fld("เลขบัตรประชาชน",
+        '<input class="inp" type="password" id="f-nid" value="'+esc(r?r.nationalId:"")+'">'
+        + '<button class="lnk" onclick="peekInput(\'f-nid\',this)">แสดง</button>')
+      + fld("ที่อยู่", '<input class="inp" id="f-address" value="'+esc(r?r.address:"")+'">')
+      + fld("ธนาคาร", '<input class="inp" id="f-bank" placeholder="เช่น กสิกรไทย" value="'+esc(r?r.bankName:"")+'">')
+      + fld("เลขบัญชี (ไว้โอนเงินเดือน/เบิก)", '<input class="inp" id="f-bankno" inputmode="numeric" value="'+esc(r?r.bankNo:"")+'">')
+      + fld("ชื่อบัญชี", '<input class="inp" id="f-acctname" placeholder="ชื่อ-นามสกุลเจ้าของบัญชี" value="'+esc(r?r.acctName:"")+'">');
+  }
+  openModal(r ? "แก้พนักงาน" : "เพิ่มพนักงาน", body + mfoot("saveStaff", id));
+}
+function saveStaff(id){
+  const name = val("f-name").trim();
+  if(!name){ notify("กรุณาใส่ชื่อ"); return; }
+  const f = { name, role:val("f-role"), commissionRole:val("f-comm"), branch:val("f-branch").trim(),
+              position:val("f-role"), phoneInt:val("f-phone").trim(), startDate:val("f-start") };
+  // ช่องอ่อนไหวมีเฉพาะตอนดูในฐานะเจ้าของ/HR — ถ้าไม่มีช่อง ห้ามเขียนทับของเดิม
+  if(document.getElementById("f-salary"))  f.salary     = +val("f-salary")||0;
+  if(document.getElementById("f-house"))   f.houseAllow = +val("f-house")||0;
+  if(document.getElementById("f-nid"))     f.nationalId = val("f-nid").trim();
+  if(document.getElementById("f-address")) f.address    = val("f-address").trim();
+  if(document.getElementById("f-bank"))    f.bankName   = val("f-bank").trim();
+  if(document.getElementById("f-bankno"))  f.bankNo     = val("f-bankno").trim();
+  if(document.getElementById("f-acctname")) f.acctName  = val("f-acctname").trim();
+  if(id){ const r = db.staff.find(x=>x.id===id); if(r) Object.assign(r, f); }
+  else { db.staff.unshift(Object.assign({ id:uid(), status:"active", salary:0, houseAllow:0, nationalId:"", address:"" }, f)); }
+  save(); closeModal(); render();
+}
+function toggleStaffActive(id){
+  const s = db.staff.find(x=>x.id===id); if(!s) return;
+  s.status = s.status==="inactive" ? "active" : "inactive";   // ลาออก = ปิด ไม่ลบ (เก็บประวัติตามกฎหมาย)
+  save(); render();
+}
+function delStaff(id){
+  if(currentRole !== "owner") return;
+  const s = db.staff.find(x=>x.id===id); if(!s) return;
+  const nLeave = db.leaves.filter(x=>x.staffId===id).length;
+  const nDoc   = db.hrdocs.filter(x=>x.staffId===id).length;
+  appConfirm("ลบพนักงานถาวร จะลบใบลา "+nLeave+" ใบ และเอกสาร "+nDoc+" ใบ ของคนนี้ตามไปด้วย ยืนยันไหม", ()=>{
+    db.staff  = db.staff.filter(x=>x.id!==id);
+    db.leaves = db.leaves.filter(x=>x.staffId!==id);   // cascade แบบมีสติ ไม่ทิ้งเศษข้อมูล
+    db.hrdocs = db.hrdocs.filter(x=>x.staffId!==id);
+    save(); render();
+  }, "ลบถาวร");
+}
+registerModule({ key:"staff", ic:"👥", label:"พนักงาน", render: renderStaff });
+
+/* ============================================================
+   แท็บลา — วันลาคงเหลือเป็น derived คำนวณตอน render ทุกครั้ง
+   ============================================================ */
+const LEAVE_TYPES = ["ลาป่วย","ลากิจ","ลาพักร้อน"];
+const LEAVE_QUOTA = { "ลาป่วย":30, "ลากิจ":3, "ลาพักร้อน":6 };   // โควตาต่อปี
+
+function leaveApproved(l){ return l.status === "approved" || l.status === "อนุมัติ"; }
+function leaveUsed(staffId, type, year){
+  return db.leaves
+    .filter(l => l.staffId===staffId && l.type===type && leaveApproved(l)
+              && String(l.dateFrom||"").slice(0,4)===year)
+    .reduce((t,l)=> t + (+l.days||0), 0);
+}
+function leaveChip(l){
+  if(leaveApproved(l)) return chip("อนุมัติ","c-เสร็จ");
+  if(l.status === "rejected") return chip("ไม่อนุมัติ","c-เกิน");
+  return chip("รออนุมัติ","c-ใหม่");
+}
+function leaveDecide(id, ok){
+  const l = db.leaves.find(x=>x.id===id);
+  if(!l || l.status !== "pending") return;                        // อนุมัติได้เฉพาะใบที่รออยู่
+  const doIt = ()=>{ l.status = ok ? "approved" : "rejected"; l.decided_at = todayStr(); save(); render(); };
+  if(!ok) appConfirm("ไม่อนุมัติใบลา " + l.type + " " + l.days + " วัน ของ " + staffName(l.staffId) + " ?", doIt, "ไม่อนุมัติ");
+  else doIt();
+}
+function renderLeaves(){
+  const year = todayStr().slice(0,4);
+  const nPending = db.leaves.filter(l=>l.status==="pending").length;
+  let h = head("ใบลา", "พนักงานยื่นจากมือถือ · อนุมัติแล้วถึงตัดโควตา"
+    + (nPending ? " · รออนุมัติ " + nPending + " ใบ" : ""), "openLeaveForm");
+  if(db.staff.length){
+    const active = db.staff.filter(s=>s.status!=="inactive");
+    const qcols = [{t:"พนักงาน"}].concat(LEAVE_TYPES.map(t=>({t:t+" คงเหลือ",c:"num"})));
+    const qrows = active.map(s=>[esc(s.name)].concat(
+      LEAVE_TYPES.map(t=> String(LEAVE_QUOTA[t] - leaveUsed(s.id, t, year)) + " / " + LEAVE_QUOTA[t])));
+    h += '<div class="sub">วันลาคงเหลือรายคน · ปี '+((+year)+543)+' (นับเฉพาะที่อนุมัติแล้ว)</div>' + tbl(qcols, qrows);
+  }
+  if(!db.leaves.length) return h + empty("ยังไม่มีใบลา — พนักงานยื่นจากมือถือ หรือกด + เพิ่ม เพื่อคีย์แทน");
+  const order = l => l.status === "pending" ? 0 : 1;
+  const cols = [{t:"พนักงาน"},{t:"ประเภท"},{t:"จำนวนวัน",c:"num"},{t:"วันที่ลา"},{t:"สถานะ"},{c:"act"}];
+  const rows = db.leaves.slice()
+    .sort((a,b)=> order(a)-order(b) || (b.dateFrom||"").localeCompare(a.dateFrom||""))
+    .map(l=>{
+      let act;
+      if(l.status === "pending")
+        act = lnk("อนุมัติ","leaveDecide('"+l.id+"',true)")
+            + lnk("ไม่อนุมัติ","leaveDecide('"+l.id+"',false)","del")
+            + lnk("แก้","openLeaveForm('"+l.id+"')");
+      else
+        act = lnk("ลบ","delRow('leaves','"+l.id+"')","del");
+      return [
+        esc(staffName(l.staffId)) + (l.note ? '<div class="sub">'+esc(l.note)+'</div>' : ""),
+        esc(l.type||"—"),
+        String(+l.days||0),
+        thDate(l.dateFrom),
+        leaveChip(l),
+        act
+      ];
+    });
+  return h + tbl(cols, rows);
+}
+function openLeaveForm(id){
+  const r = id ? db.leaves.find(x=>x.id===id) : null;
+  const sOpts = db.staff.map(s=>'<option value="'+s.id+'"'+(r&&r.staffId===s.id?" selected":"")+'>'+esc(s.name)+'</option>').join("");
+  const tOpts = LEAVE_TYPES.map(t=>'<option'+(r&&r.type===t?" selected":"")+'>'+t+'</option>').join("");
+  openModal(r ? "แก้ใบลา" : "เพิ่มใบลา",
+    fld("พนักงาน", '<select class="inp" id="f-staff">'+sOpts+'</select>')
+    + fld("ประเภท", '<select class="inp" id="f-type">'+tOpts+'</select>')
+    + fld("จำนวนวัน", '<input class="inp" type="number" step="0.5" id="f-days" value="'+(r?r.days:1)+'">')
+    + fld("วันที่ลา", '<input class="inp" type="date" id="f-from" value="'+esc(r?r.dateFrom:todayStr())+'">')
+    + fld("หมายเหตุ", '<input class="inp" id="f-note" value="'+esc(r?r.note:"")+'">')
+    + mfoot("saveLeave", id));
+}
+function saveLeave(id){
+  const staffId = val("f-staff");
+  if(!staffId){ notify("ต้องเลือกพนักงานเจ้าของใบลา"); return; }
+  const f = { staffId, type:val("f-type"), days:+val("f-days")||0, dateFrom:val("f-from"), note:val("f-note").trim() };
+  if(id){ const r = db.leaves.find(x=>x.id===id); if(r) Object.assign(r, f); }
+  else { db.leaves.unshift(Object.assign({ id:uid(), status:"approved" }, f)); }   // เจ้าของคีย์เอง = อนุมัติเลย (พนักงานยื่นจาก popup = pending)
+  save(); closeModal(); render();
+}
+registerModule({ key:"leaves", ic:"🌴", label:"ลา", render: renderLeaves });
+
+/* ============================================================
+   แท็บเอกสาร HR
+   ============================================================ */
+const DOC_KINDS = ["สัญญาจ้าง","หนังสือรับรอง"];
+
+function renderHrDocs(){
+  let h = head("เอกสาร HR", "เอกสารพนักงานผูกรายคน", "openHrDocForm");
+  if(!db.hrdocs.length) return h + empty("ยังไม่มีเอกสาร กดปุ่ม + เพิ่ม");
+  const cols = [{t:"พนักงาน"},{t:"ประเภทเอกสาร"},{t:"ชื่อเอกสาร"},{t:"วันที่"},{c:"act"}];
+  const rows = db.hrdocs.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(d=>[
+    esc(staffName(d.staffId)),
+    esc(d.kind||"—"),
+    esc(d.title||"—"),
+    thDate(d.date),
+    lnk("แก้","openHrDocForm('"+d.id+"')") + lnk("ลบ","delRow('hrdocs','"+d.id+"')","del")
+  ]);
+  return h + tbl(cols, rows);
+}
+function openHrDocForm(id){
+  const r = id ? db.hrdocs.find(x=>x.id===id) : null;
+  const sOpts = db.staff.map(s=>'<option value="'+s.id+'"'+(r&&r.staffId===s.id?" selected":"")+'>'+esc(s.name)+'</option>').join("");
+  const kOpts = DOC_KINDS.map(k=>'<option'+(r&&r.kind===k?" selected":"")+'>'+k+'</option>').join("");
+  openModal(r ? "แก้เอกสาร" : "เพิ่มเอกสาร",
+    fld("พนักงาน", '<select class="inp" id="f-staff">'+sOpts+'</select>')
+    + fld("ประเภทเอกสาร", '<select class="inp" id="f-kind">'+kOpts+'</select>')
+    + fld("ชื่อเอกสาร", '<input class="inp" id="f-title" value="'+esc(r?r.title:"")+'">')
+    + fld("วันที่", '<input class="inp" type="date" id="f-date" value="'+esc(r?r.date:todayStr())+'">')
+    + mfoot("saveHrDoc", id));
+}
+function saveHrDoc(id){
+  const staffId = val("f-staff");
+  if(!staffId){ notify("ต้องเลือกพนักงานเจ้าของเอกสาร"); return; }
+  const f = { staffId, kind:val("f-kind"), title:val("f-title").trim(), date:val("f-date") };
+  if(id){ const r = db.hrdocs.find(x=>x.id===id); if(r) Object.assign(r, f); }
+  else { db.hrdocs.unshift(Object.assign({ id:uid() }, f)); }
+  save(); closeModal(); render();
+}
+registerModule({ key:"hrdocs", ic:"📄", label:"เอกสาร HR", render: renderHrDocs });
+
+/* ============================================================
+   แท็บลงเวลา — เช็คชื่อรายวัน (ฐานตัวหารค่าคอม) + เข้า-ออก/OT
+   "มาทำงานวันนั้น" = มี record ของวันนั้น (มีหรือไม่มีเวลาก็ได้)
+   วันหยุด (holiday:true) → ชั่วโมงทั้งหมดคิด OT วันหยุด ×2
+   ============================================================ */
+function workHours(timeIn, timeOut){
+  if(!timeIn || !timeOut) return 0;
+  const a = timeIn.split(":"), b = timeOut.split(":");
+  let mins = ((+b[0])*60 + (+b[1])) - ((+a[0])*60 + (+a[1]));
+  if(mins < 0) mins += 24*60;              // เข้ากะข้ามเที่ยงคืน
+  let hrs = mins/60;
+  if(hrs > 5) hrs -= 1;                    // หักพักเที่ยง 1 ชม. ถ้าทำเกิน 5 ชม.
+  return Math.max(0, hrs);
+}
+/* แยกชั่วโมง OT: วันธรรมดา = ส่วนเกิน 8 ชม. · วันหยุด = ทุกชั่วโมงที่ทำ
+   ถ้ามี otManual (กรอกมือจากแท็บเช็คชื่อ Manual) ใช้ค่านั้นแทนการคำนวณจากเวลา */
+function otSplit(r){
+  if(r.otManual !== undefined && r.otManual !== "" && +r.otManual > 0)
+    return r.holiday ? { n:0, h:+r.otManual } : { n:+r.otManual, h:0 };
+  const wh = workHours(r.timeIn, r.timeOut);
+  if(!wh) return { n:0, h:0 };
+  return r.holiday ? { n:0, h:wh } : { n:Math.max(0, wh-8), h:0 };
+}
+function otHours(r){ const o = otSplit(r); return o.n + o.h; }
+function staffName(id){ const s = db.staff.find(x=>x.id===id); return s ? s.name : "—"; }
+function presentIds(date){
+  const set = {};
+  db.attendance.forEach(a=>{ if(a.date===date) set[a.staffId] = true; });
+  return set;
+}
+
+function renderAttendance(){
+  let h = head("ลงเวลา", "เช็คชื่อรายวัน (ฐานหารค่าคอม) + เข้า-ออก/OT", "openAttForm");
+  h += '<div class="bar"><button class="btn" onclick="openCheckin(\''+todayStr()+'\')">✓ เช็คชื่อรายวัน</button>'
+    + '<button class="btn ghost" onclick="openMonthCheckin(\''+curMonth()+'\')">เช็คชื่อย้อนหลังทั้งเดือน</button>'
+    + '<button class="btn ghost" onclick="openLineImport()">นำเข้าเช็คชื่อจากไลน์ (CSV)</button></div>';
+  if(!db.attendance.length) return h + empty("ยังไม่มีการลงเวลา — กดปุ่มเช็คชื่อรายวัน หรือ + เพิ่ม เพื่อบันทึกพร้อมเวลา");
+  const cols = [{t:"วันที่"},{t:"พนักงาน"},{t:"เข้า"},{t:"ออก"},{t:"ชั่วโมง",c:"num"},{t:"OT",c:"num"},{t:""},{c:"act"}];
+  const rows = db.attendance.slice().sort((a,b)=> (b.date||"").localeCompare(a.date||"")).map(r=>{
+    const o = otSplit(r);
+    return [
+      thDate(r.date),
+      esc(staffName(r.staffId)),
+      esc(r.timeIn||"—"),
+      esc(r.timeOut||"—"),
+      workHours(r.timeIn, r.timeOut).toFixed(1),
+      o.h ? o.h.toFixed(1)+" (วันหยุด)" : o.n.toFixed(1),
+      r.holiday ? chip("วันหยุด","c-ใหม่") : "",
+      lnk("แก้","openAttForm('"+r.id+"')") + lnk("ลบ","delRow('attendance','"+r.id+"')","del")
+    ];
+  });
+  return h + tbl(cols, rows);
+}
+function openAttForm(id){
+  const r = id ? db.attendance.find(x=>x.id===id) : null;
+  const opts = db.staff.map(s=>'<option value="'+s.id+'"'+(r&&r.staffId===s.id?" selected":"")+'>'+esc(s.name)+'</option>').join("");
+  openModal(r ? "แก้เวลา" : "ลงเวลา",
+    fld("พนักงาน", '<select class="inp" id="f-staff">'+opts+'</select>')
+    + fld("วันที่", '<input class="inp" type="date" id="f-date" value="'+esc(r?r.date:todayStr())+'">')
+    + fld("เวลาเข้า", '<input class="inp" type="time" id="f-in" value="'+esc(r?r.timeIn:"")+'">')
+    + fld("เวลาออก", '<input class="inp" type="time" id="f-out" value="'+esc(r?r.timeOut:"")+'">')
+    + fld("", '<label class="lbl"><input type="checkbox" id="f-holiday"'+(r&&r.holiday?" checked":"")+'> วันหยุด (ชั่วโมงทั้งหมดคิด OT ×'+db.settings.otHolidayMult+')</label>')
+    + mfoot("saveAtt", id));
+}
+function saveAtt(id){
+  const staffId = val("f-staff"), date = val("f-date"), timeIn = val("f-in"), timeOut = val("f-out");
+  const holiday = !!(document.getElementById("f-holiday")||{}).checked;
+  if(!staffId){ notify("ยังไม่มีพนักงาน กรุณาเพิ่มพนักงานก่อน"); return; }
+  if(!date){ notify("กรุณาเลือกวันที่"); return; }
+  const st = db.staff.find(x=>x.id===staffId);
+  if(id){ const r = db.attendance.find(x=>x.id===id); if(r){
+    if(r.staffId!==staffId) r.role = st ? st.role : "";   // เปลี่ยนคน = ตำแหน่งตามคนใหม่ (คนเดิมคง role ณ วันนั้น)
+    r.staffId=staffId; r.date=date; r.timeIn=timeIn; r.timeOut=timeOut; r.holiday=holiday; } }
+  else { db.attendance.unshift({ id:uid(), staffId, date, timeIn, timeOut, holiday, role: st ? st.role : "" }); }
+  save(); closeModal(); render();
+}
+
+/* เช็คชื่อทั้งทีมในโมดัลเดียว — ติ๊กคนที่มา ระบบสร้าง/ลบ record ให้ */
+function openCheckin(date){
+  date = date || todayStr();
+  const present = presentIds(date);
+  const holiday = dayHoliday(date);   // อาทิตย์ = ค่าเริ่มต้นหยุด (ติ๊กออกได้)
+  const awaySet = {};
+  db.attendance.forEach(a=>{ if(a.date===date && a.branch==="บุรีรัมย์") awaySet[a.staffId] = true; });
+  const group = role => db.staff.filter(s=>s.status!=="inactive" && s.role===role)
+    .map(s=>'<label class="lbl" style="margin-bottom:6px"><input type="checkbox" id="ck-'+s.id+'"'
+      + (present[s.id] ? " checked" : "") + '> ' + esc(s.name)
+      + (s.commissionRole==="percent"
+          ? ' &nbsp;<label class="lbl" style="display:inline"><input type="checkbox" id="ckb-'+s.id+'"'
+            + (awaySet[s.id] ? " checked" : "") + '> ไปบุรีรัมย์ (เป็นผู้ช่วยกองรวม รับเท่าผู้ช่วยคนอื่น · งด 1%)</label>'
+          : "")
+      + '</label>').join("");
+  openModal("เช็คชื่อ " + thDate(date),
+    fld("วันที่", '<input class="inp" type="date" id="f-ck-date" value="'+esc(date)+'" onchange="openCheckin(this.value)">')
+    + fld("", '<label class="lbl"><input type="checkbox" id="ck-holiday"'+(holiday?" checked":"")+'> วันนี้เป็นวันหยุด (ทุกชั่วโมงคิด OT ×'+db.settings.otHolidayMult+')</label>')
+    + fld("ช่าง", group("ช่าง") || '<div class="sub">— ไม่มี —</div>')
+    + fld("ผู้ช่วย", group("ผู้ช่วย") || '<div class="sub">— ไม่มี —</div>')
+    + mfoot("saveCheckin", date, "บันทึกเช็คชื่อ"));
+}
+function saveCheckin(date){
+  const holiday = !!(document.getElementById("ck-holiday")||{}).checked;
+  db.staff.filter(s=>s.status!=="inactive").forEach(s=>{
+    const el = document.getElementById("ck-"+s.id); if(!el) return;
+    const bEl = document.getElementById("ckb-"+s.id);
+    const branch = bEl && bEl.checked ? "บุรีรัมย์" : "";
+    let rec = db.attendance.find(a=>a.date===date && a.staffId===s.id);
+    if(el.checked && !rec) db.attendance.unshift({ id:uid(), staffId:s.id, date, timeIn:"", timeOut:"", holiday, role:s.role, branch });
+    // เอาติ๊กออก = ลบเฉพาะ record ที่ไม่มีเวลา (record ที่คีย์เวลาไว้ต้องไปลบเองที่ตาราง)
+    else if(!el.checked && rec && !rec.timeIn && !rec.timeOut)
+      db.attendance = db.attendance.filter(a=>a.id!==rec.id);
+    else if(el.checked && rec) rec.branch = branch;   // แก้ธงไปบุรีรัมย์ย้อนหลังได้
+  });
+  db.attendance.forEach(a=>{ if(a.date===date) a.holiday = holiday; });
+  save(); closeModal(); render();
+}
+/* --- เช็คชื่อย้อนหลังทั้งเดือน — กริดเหมือนชีตเช็คชื่อเดิม (แถว=วัน คอลัมน์=คนในระบบค่าคอม) ---
+   ติ๊ก = มา · บันทึกทีเดียวทั้งเดือน · record ที่มีเวลาเข้า-ออกอยู่แล้วถูกล็อก (กัน OT หาย)
+   คนนอกระบบค่าคอม (commissionRole "none") ไม่อยู่ในกริด — ใช้เช็คชื่อรายวันแทน */
+let mckMonth = "";
+function calDates(period){   // ทุกวันปฏิทินของเดือน (ต่างจาก monthDates ที่คืนเฉพาะวันมีงานรถ)
+  const p = period.split("-"), n = new Date(+p[0], +p[1], 0).getDate(), out = [];
+  for(let d=1; d<=n; d++) out.push(period + "-" + String(d).padStart(2,"0"));
+  return out;
+}
+function mckStaff(){
+  const order = { "ช่าง":0, "ผู้ช่วย":1 };
+  return db.staff.filter(s=>s.status!=="inactive" && s.commissionRole!=="none")
+    .slice().sort((a,b)=>(order[a.role]??2)-(order[b.role]??2));
+}
+function openMonthCheckin(month){
+  mckMonth = month || curMonth();
+  const staff = mckStaff();
+  const dates = calDates(mckMonth);
+  const byDay = {};   // date → {staffId: rec}
+  db.attendance.forEach(a=>{ if(monthOf(a.date)===mckMonth){ (byDay[a.date] = byDay[a.date]||{})[a.staffId] = a; } });
+  let grid = '<div class="card" style="max-height:55vh;overflow:auto"><table class="tbl" style="font-size:12px">'
+    + '<thead><tr><th>วัน</th>'
+    + staff.map(s=>'<th style="padding:6px 4px;text-align:center">'+esc(s.name)+'</th>').join('')
+    + '<th style="padding:6px 4px">หยุด</th></tr></thead><tbody>';
+  dates.forEach(d=>{
+    const day = +d.slice(8,10);
+    const recs = byDay[d] || {};
+    const holiday = Object.values(recs).some(r=>r.holiday);
+    grid += '<tr><td style="padding:6px 8px;white-space:nowrap">'+day+'</td>'
+      + staff.map(s=>{
+          const r = recs[s.id];
+          const locked = r && (r.timeIn || r.timeOut);   // มีเวลา = ล็อก แก้ที่ตารางลงเวลา
+          return '<td style="padding:4px;text-align:center"><input type="checkbox" id="mck-'+day+'-'+s.id+'"'
+            + (r ? " checked" : "") + (locked ? ' disabled title="มีเวลาเข้า-ออก แก้ที่ตารางลงเวลา"' : "") + '></td>';
+        }).join('')
+      + '<td style="padding:4px;text-align:center"><input type="checkbox" id="mh-'+day+'"'+(holiday?" checked":"")+'></td></tr>';
+  });
+  grid += '</tbody></table></div>';
+  openModal("เช็คชื่อทั้งเดือน",
+    fld("เดือน", '<input class="inp" type="month" value="'+esc(mckMonth)+'" onchange="openMonthCheckin(this.value)">')
+    + '<div class="sub" style="margin-bottom:8px">ติ๊ก = มาทำงาน · คอลัมน์ขวาสุด = วันหยุด (OT ×'+db.settings.otHolidayMult+') · ช่องสีจาง = มีเวลาเข้า-ออกแล้ว ล็อกไว้</div>'
+    + grid
+    + mfoot("saveMonthCheckin", "", "บันทึกทั้งเดือน"));
+}
+function saveMonthCheckin(){
+  const staff = mckStaff();
+  let added = 0, removed = 0;
+  calDates(mckMonth).forEach(d=>{
+    const day = +d.slice(8,10);
+    const hEl = document.getElementById("mh-"+day);
+    if(!hEl) return;
+    const holiday = hEl.checked;
+    staff.forEach(s=>{
+      const el = document.getElementById("mck-"+day+"-"+s.id);
+      if(!el || el.disabled) return;                       // ช่องล็อก (มีเวลา) ไม่แตะ
+      const rec = db.attendance.find(a=>a.date===d && a.staffId===s.id);
+      if(el.checked && !rec){ db.attendance.unshift({ id:uid(), staffId:s.id, date:d, timeIn:"", timeOut:"", holiday, role:s.role }); added++; }
+      else if(!el.checked && rec && !rec.timeIn && !rec.timeOut){
+        db.attendance = db.attendance.filter(a=>a.id!==rec.id); removed++;
+      }
+    });
+    db.attendance.forEach(a=>{ if(a.date===d) a.holiday = holiday; });
+  });
+  save(); closeModal(); render();
+  notify("บันทึกเช็คชื่อเดือน "+beMonth(mckMonth)+" แล้ว (เพิ่ม "+added+" · เอาออก "+removed+" รายการ)");
+}
+
+/* --- นำเข้าเช็คชื่อจากระบบลงเวลาไลน์ (ชีต "Albatros เช็คชื่อ-ลงเวลา" แท็บ Checkins export เป็น CSV) ---
+   คอลัมน์: date, time, name, slot (IN/OUT), photo_url, lat, lng, distance_m, in_range, line_user_id
+   รวมเป็น 1 record ต่อคนต่อวัน: timeIn = IN แรกสุด · timeOut = OUT ท้ายสุด
+   แถวที่นำเข้าติดธง source:"line" — นำเข้าซ้ำแทนที่เฉพาะธง line ของเดือนนั้น (คีย์มือ/เช็คชื่อมือไม่แตะ) */
+function openLineImport(){
+  openModal("นำเข้าเช็คชื่อจากไลน์",
+    '<div class="note">เปิดชีต "Albatros เช็คชื่อ-ลงเวลา" → แท็บ Checkins → ไฟล์ → ดาวน์โหลด → CSV แล้วเลือกไฟล์ที่นี่<br>'
+    + 'ชื่อพนักงานในชีตต้องสะกดตรงกับชื่อในแท็บพนักงาน</div>'
+    + fld("ไฟล์ CSV", '<input class="inp" type="file" accept=".csv,text/csv" id="f-line-file">')
+    + mfoot("runLineImport", "", "นำเข้า"));
+}
+function runLineImport(){
+  const el = document.getElementById("f-line-file");
+  if(!el.files.length){ notify("เลือกไฟล์ CSV ก่อนครับ"); return; }
+  const rd = new FileReader();
+  rd.onload = function(){
+    const rows = db3ParseCsv(String(rd.result));
+    if(rows.length < 2){ notify("อ่านไฟล์ไม่ได้ หรือไฟล์ว่าง"); return; }
+    const headRow = rows[0];
+    if(headRow.indexOf("date")<0 || headRow.indexOf("slot")<0){
+      notify("หน้าตาไฟล์ไม่ใช่แท็บ Checkins (ไม่เจอคอลัมน์ date/slot)"); return;
+    }
+    const byName = {};
+    db.staff.forEach(s=>{ byName[s.name] = s.id; });
+    const days = {};            // "date|staffId" → {date, staffId, timeIn, timeOut}
+    const unknown = {};
+    for(let i=1;i<rows.length;i++){
+      const o = {}; headRow.forEach((hName,k)=>{ o[hName]=rows[i][k]; });
+      const date = db3ParseDate(o.date); if(!date) continue;
+      const nm = String(o.name||"").trim();
+      if(!byName[nm]){ unknown[nm]=1; continue; }
+      const kk = date+"|"+byName[nm];
+      const t = String(o.time||"").slice(0,5);
+      days[kk] = days[kk] || { date, staffId:byName[nm], timeIn:"", timeOut:"" };
+      if(o.slot==="OUT"){ if(!days[kk].timeOut || t > days[kk].timeOut) days[kk].timeOut = t; }
+      else { if(!days[kk].timeIn || t < days[kk].timeIn) days[kk].timeIn = t; }
+    }
+    const list = Object.values(days);
+    if(!list.length){ notify("ไม่พบข้อมูลที่จับคู่พนักงานได้ในไฟล์"); return; }
+    const months = {};
+    list.forEach(r=>{ months[monthOf(r.date)] = (months[monthOf(r.date)]||0)+1; });
+    const replaced = db.attendance.filter(a=>a.source==="line" && months[monthOf(a.date)]).length;
+    let msg = "นำเข้าเช็คชื่อ "+list.length+" รายการ ("+Object.keys(months).sort().map(m=>beMonth(m)).join(" · ")+")";
+    if(replaced) msg += "\nแทนที่ของเดิมจากไลน์ "+replaced+" รายการ";
+    if(Object.keys(unknown).length) msg += "\n⚠️ ชื่อที่ไม่รู้จัก (ข้าม): "+Object.keys(unknown).join(", ");
+    appConfirm(msg+"\nยืนยันไหม?", ()=>{
+      db.attendance = db.attendance.filter(a=>!(a.source==="line" && months[monthOf(a.date)]));
+      list.forEach(r=>{
+        // ถ้าวันนั้นมี record มือของคนเดียวกันอยู่แล้ว ไม่เพิ่มซ้ำ (กันตัวหารเบิ้ล)
+        if(db.attendance.some(a=>a.date===r.date && a.staffId===r.staffId)) return;
+        const st = db.staff.find(s=>s.id===r.staffId);
+        db.attendance.unshift({ id:uid(), staffId:r.staffId, date:r.date,
+          timeIn:r.timeIn, timeOut:r.timeOut, holiday:false, source:"line", role: st ? st.role : "" });
+      });
+      save(); closeModal(); render();
+      notify("นำเข้าเรียบร้อย — วันหยุด (OT ×2) ต้องไปติ๊กเองที่ปุ่มเช็คชื่อรายวันของวันนั้น");
+    }, "นำเข้า");
+  };
+  rd.readAsText(el.files[0], "utf-8");
+}
+registerModule({ key:"attendance", ic:"🕘", label:"ลงเวลา", render: renderAttendance });
+
+/* ============================================================
+   แท็บเช็คชื่อ Manual — คุณโอติ๊กเอง มา/ไม่มา + วันหยุด + OT รายวัน
+   (ใช้แทนแอปลงเวลาไลน์ไปก่อน จนกว่าคุณโอสั่งเปิด — ระบบไลน์คาไว้ ไม่ลบ)
+   เขียนลง db.attendance ก้อนเดียวกับแท็บลงเวลา · ช่องที่มีเวลาเข้า-ออกถูกล็อก
+   ============================================================ */
+let mcMonth = "";
+function setMcMonth(v){ mcMonth = v; render(); }
+/* ร้านหยุดทุกวันอาทิตย์ (กติกาคุณโอ 1 ก.ย.) — วันอาทิตย์ตั้งธง "หยุด" ให้เอง (OT ×2) ติ๊กออกได้ถ้าเปิดพิเศษ */
+const TH_DOW = ["อา","จ","อ","พ","พฤ","ศ","ส"];
+function dowOf(d){ return new Date(d + "T00:00:00").getDay(); }
+function isSunday(d){ return dowOf(d) === 0; }
+/* ธงวันหยุดของวัน: ถ้ามี record แล้วใช้ธงจริง · ยังไม่มี = ค่าเริ่มต้นตามวันอาทิตย์ */
+function dayHoliday(date){
+  const recs = db.attendance.filter(a=>a.date===date);
+  return recs.length ? recs.some(r=>r.holiday) : isSunday(date);
+}
+function mcStaff(){   // ทุกคนที่ยังทำงาน เรียง ช่าง → ผู้ช่วย → แอดมิน (รวมคนไม่รับค่าคอม เผื่อรายวัน/ประวัติ)
+  const order = { "ช่าง":0, "ผู้ช่วย":1, "แอดมิน":2 };
+  return db.staff.filter(s=>s.status!=="inactive")
+    .slice().sort((a,b)=>(order[a.role]??3)-(order[b.role]??3));
+}
+function renderManualCheck(){
+  const p = mcMonth || curMonth();
+  const staff = mcStaff();
+  const dates = calDates(p);
+  const byDay = {};
+  db.attendance.forEach(a=>{ if(monthOf(a.date)===p){ (byDay[a.date] = byDay[a.date]||{})[a.staffId] = a; } });
+  let h = head("เช็คชื่อ Manual", "ติ๊กเองรายวัน มา/ไม่มา + วันหยุด + OT — บันทึกลงก้อนเดียวกับแท็บลงเวลา", "");
+  h += '<div class="bar"><span class="lbl">เดือน</span>'
+    + '<input class="inp" type="month" value="'+esc(p)+'" onchange="setMcMonth(this.value)">'
+    + '<button class="btn" onclick="saveManualCheck(\''+p+'\')">💾 บันทึกทั้งเดือน</button>'
+    + '<span class="sub">ติ๊ก = มา · คอลัมน์ "หยุด" = วันหยุดร้าน (OT ×'+db.settings.otHolidayMult+') — '
+    + '<b>วันอาทิตย์ติ๊กหยุดให้อัตโนมัติ</b> (แถวสีชมพู · เปิดพิเศษก็ติ๊กออกได้) · '
+    + 'บร = หมวยไปบุรีรัมย์ · ช่องจาง = มีเวลาเข้า-ออกจากระบบอื่น ล็อกไว้</span></div>';
+  let grid = '<div class="card"><table class="tbl" style="font-size:12px"><thead><tr><th>วัน</th>'
+    + staff.map(s=>'<th style="padding:6px 4px;text-align:center">'+esc(s.name)
+        + '<div class="sub" style="font-size:10px">'+esc(s.role||"")+'</div></th>').join('')
+    + '<th style="padding:6px 4px">หยุด</th></tr></thead><tbody>';
+  dates.forEach(d=>{
+    const day = +d.slice(8,10);
+    const recs = byDay[d] || {};
+    const sun = isSunday(d);
+    const holiday = Object.values(recs).length ? Object.values(recs).some(r=>r.holiday) : sun;   // อาทิตย์ = หยุดอัตโนมัติ
+    const rowStyle = sun ? ' style="background:var(--danger-soft)"' : '';
+    grid += '<tr'+rowStyle+'><td style="padding:6px 8px;white-space:nowrap">'+day+' <span class="sub">'+TH_DOW[dowOf(d)]+'</span></td>'
+      + staff.map(s=>{
+          const r = recs[s.id];
+          const locked = r && (r.timeIn || r.timeOut);
+          // ติ๊กปุ๊บบันทึกทันที (onchange) — ไม่ต้องรอปุ่มบันทึก ติ๊กเด้ง/หายเป็นไปไม่ได้อีก
+          let cell = '<input type="checkbox" id="mc-'+day+'-'+s.id+'" onchange="mcTick('+day+',\''+s.id+'\',this.checked)"'
+            + (r ? " checked" : "") + (locked ? ' disabled title="มีเวลาเข้า-ออก แก้ที่แท็บลงเวลา"' : "") + '>';
+          if(s.commissionRole==="percent")
+            cell += '<div style="font-size:10px;white-space:nowrap"><input type="checkbox" id="mcb-'+day+'-'+s.id+'" onchange="mcbTick('+day+',\''+s.id+'\',this.checked)"'
+              + (r && r.branch==="บุรีรัมย์" ? " checked" : "") + '> บร</div>';
+          return '<td style="padding:4px;text-align:center">'+cell+'</td>';
+        }).join('')
+      + '<td style="padding:4px;text-align:center"><input type="checkbox" id="mch-'+day+'" onchange="mchTick('+day+',this.checked)"'+(holiday?" checked":"")+'></td></tr>';
+  });
+  grid += '</tbody></table></div>';
+  h += grid;
+
+  /* ── OT รายวัน (กรอกชั่วโมงตรงๆ ไม่ต้องกรอกเวลาเข้า-ออก) ── */
+  const sOpts = staff.map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join("");
+  h += '<div class="sub" style="margin-top:16px"><b>OT รายวัน</b> — เลือกวัน+คน+ชั่วโมง แล้วกดเพิ่ม (ประเภทคิดให้เอง: วันที่ติ๊ก "หยุด" = OT วันหยุด ×'+db.settings.otHolidayMult+' · วันปกติ ×'+db.settings.otMult+')</div>';
+  h += '<div class="bar"><input class="inp" type="date" id="mc-ot-date" value="'+esc(p+"-01")+'">'
+    + '<select class="inp" id="mc-ot-staff">'+sOpts+'</select>'
+    + '<input class="inp" type="number" step="0.5" min="0.5" id="mc-ot-hrs" placeholder="ชม." style="width:90px">'
+    + '<button class="btn" onclick="addManualOt()">+ เพิ่ม OT</button></div>';
+  const otRows = db.attendance
+    .filter(a=>monthOf(a.date)===p && otHours(a)>0)
+    .sort((a,b)=>String(a.date).localeCompare(String(b.date)))
+    .map(a=>{
+      const o = otSplit(a);
+      return [ thDate(a.date), esc(staffName(a.staffId)),
+        (o.n+o.h).toFixed(1) + " ชม." + (a.otManual!==undefined && a.otManual!=="" && +a.otManual>0 ? "" : '<div class="sub">จากเวลาเข้า-ออก</div>'),
+        a.holiday ? chip("OT วันหยุด ×"+db.settings.otHolidayMult,"c-ใหม่") : chip("OT ธรรมดา ×"+db.settings.otMult,"c-เสร็จ"),
+        (a.otManual!==undefined && a.otManual!=="" && +a.otManual>0) ? lnk("ลบ OT","delManualOt('"+a.id+"')","del") : lnk("แก้เวลา","openAttForm('"+a.id+"')") ];
+    });
+  h += otRows.length
+    ? tbl([{t:"วันที่"},{t:"พนักงาน"},{t:"ชั่วโมง",c:"num"},{t:"ประเภท"},{c:"act"}], otRows)
+    : empty("เดือนนี้ยังไม่มี OT — เพิ่มจากแถบด้านบน");
+  return h;
+}
+/* ── ติ๊กปุ๊บบันทึกทันที (b13) — ทุกช่องในกริดเขียนลง db ตั้งแต่คลิก ปุ่มบันทึกเป็นแค่ตัวยืนยันซ้ำ ── */
+function mcDate(day){ return (mcMonth || curMonth()) + "-" + String(day).padStart(2,"0"); }
+function mcTick(day, staffId, on){
+  const d = mcDate(day);
+  const s = db.staff.find(x=>x.id===staffId); if(!s) return;
+  const hEl = document.getElementById("mch-"+day);
+  const bEl = document.getElementById("mcb-"+day+"-"+staffId);
+  const rec = db.attendance.find(a=>a.date===d && a.staffId===staffId);
+  if(on && !rec){
+    db.attendance.unshift({ id:uid(), staffId, date:d, timeIn:"", timeOut:"", role:s.role,
+      holiday: hEl ? hEl.checked : dayHoliday(d),
+      branch: bEl && bEl.checked ? "บุรีรัมย์" : "" });
+  } else if(!on && rec){
+    if(rec.timeIn || rec.timeOut || +rec.otManual){
+      notify(+rec.otManual ? "วันนั้นมี OT อยู่ — ลบ OT ที่ตารางล่างก่อนครับ" : "วันนั้นมีเวลาเข้า-ออกอยู่ แก้ที่แท็บลงเวลาครับ");
+      const el = document.getElementById("mc-"+day+"-"+staffId); if(el) el.checked = true;
+      return;
+    }
+    db.attendance = db.attendance.filter(a=>a.id!==rec.id);
+  }
+  save();
+}
+function mcbTick(day, staffId, on){
+  const d = mcDate(day);
+  let rec = db.attendance.find(a=>a.date===d && a.staffId===staffId);
+  if(!rec){   // ติ๊ก บร = ถือว่ามาด้วย
+    const el = document.getElementById("mc-"+day+"-"+staffId);
+    if(el) el.checked = true;
+    mcTick(day, staffId, true);
+    rec = db.attendance.find(a=>a.date===d && a.staffId===staffId);
+  }
+  if(!rec) return;
+  rec.branch = on ? "บุรีรัมย์" : "";
+  save();
+  notify(esc(staffName(staffId)) + " วัน " + day + " → " + (on ? "บุรีรัมย์ ✓ บันทึกแล้ว" : "โคราช ✓ บันทึกแล้ว"));
+}
+function mchTick(day, on){
+  const d = mcDate(day);
+  db.attendance.forEach(a=>{ if(a.date===d) a.holiday = on; });
+  save();
+}
+
+/* เก็บติ๊กจากกริดลง db (ไม่วาดหน้า/ไม่แจ้ง) — ใช้ทั้งปุ่มบันทึกและก่อนเพิ่ม OT
+   ⚠️ ทุกการกระทำในแท็บนี้ต้องเรียกตัวนี้ก่อน render ไม่งั้นติ๊กที่ยังไม่บันทึกหายเกลี้ยง
+   (บั๊กจริง 1 ก.ย.: กดเพิ่ม OT แล้วช่อง บร ของหมวย "เด้งตลอด") */
+function applyManualGrid(p){
+  const staff = mcStaff();
+  let added = 0, removed = 0;
+  calDates(p).forEach(d=>{
+    const day = +d.slice(8,10);
+    const hEl = document.getElementById("mch-"+day);
+    if(!hEl) return;
+    const holiday = hEl.checked;
+    staff.forEach(s=>{
+      const el = document.getElementById("mc-"+day+"-"+s.id);
+      if(!el || el.disabled) return;
+      const bEl = document.getElementById("mcb-"+day+"-"+s.id);
+      const branch = bEl && bEl.checked ? "บุรีรัมย์" : "";
+      const rec = db.attendance.find(a=>a.date===d && a.staffId===s.id);
+      // มีบร ติ๊กอยู่ = ถือว่ามาด้วย (กันเคสติ๊ก บร แต่ลืมติ๊ก มา — ต้นเหตุ "เด้งไปโคราช")
+      const come = el.checked || (bEl && bEl.checked);
+      if(come && !rec){ db.attendance.unshift({ id:uid(), staffId:s.id, date:d, timeIn:"", timeOut:"", holiday, role:s.role, branch }); added++; }
+      // ห้ามลบ record ที่มีเวลาเข้า-ออก หรือมี OT (มี OT = ถือว่ามาแน่นอน)
+      else if(!come && rec && !rec.timeIn && !rec.timeOut && !(+rec.otManual)){ db.attendance = db.attendance.filter(a=>a.id!==rec.id); removed++; }
+      else if(come && rec){ rec.branch = branch; }
+    });
+    db.attendance.forEach(a=>{ if(a.date===d) a.holiday = holiday; });
+  });
+  return { added, removed };
+}
+function saveManualCheck(p){
+  const r = applyManualGrid(p);
+  save(); render();
+  notify("บันทึกเช็คชื่อเดือน "+beMonth(p)+" แล้ว (เพิ่ม "+r.added+" · เอาออก "+r.removed+")");
+}
+function addManualOt(){
+  const date = val("mc-ot-date"), staffId = val("mc-ot-staff"), hrs = +val("mc-ot-hrs")||0;
+  if(!date){ notify("เลือกวันที่ก่อนครับ"); return; }
+  if(hrs<=0){ notify("ใส่จำนวนชั่วโมง OT ก่อนครับ"); return; }
+  applyManualGrid(mcMonth || curMonth());   // เก็บติ๊กในกริด (มา/หยุด/บร) ก่อน — ติ๊กไม่หาย และ OT ได้ธงถูกต้อง
+  let rec = db.attendance.find(a=>a.date===date && a.staffId===staffId);
+  if(rec && (rec.timeIn || rec.timeOut)){
+    notify("วันนั้นมีเวลาเข้า-ออกอยู่แล้ว OT คิดจากเวลาโดยตรง — แก้ที่แท็บลงเวลาแทนครับ"); return;
+  }
+  const st = db.staff.find(s=>s.id===staffId);
+  if(!rec){   // ยังไม่ได้เช็คชื่อวันนั้น → ถือว่ามา แล้วใส่ OT ให้เลย (อาทิตย์ = วันหยุด OT ×2 อัตโนมัติ)
+    rec = { id:uid(), staffId, date, timeIn:"", timeOut:"", role: st?st.role:"",
+            holiday: dayHoliday(date), branch:"" };
+    db.attendance.unshift(rec);
+  }
+  rec.otManual = hrs;
+  save();
+  mcMonth = monthOf(date);   // ใส่ OT ข้ามเดือน (เช่นย้อน ส.ค.) → พาไปดูเดือนนั้นให้เห็นรายการทันที
+  render();
+}
+function delManualOt(id){
+  const rec = db.attendance.find(a=>a.id===id); if(!rec) return;
+  delete rec.otManual;
+  save(); render();
+}
+registerModule({ key:"manualcheck", ic:"✅", label:"เช็คชื่อ Manual", render: renderManualCheck });
+
+/* ============================================================
+   แท็บงานรถ — บันทึกรายคัน (ต้นทางค่าคอมทั้งหมด)
+   เฟสหน้า: ดึงจากแอป Tree แทนการคีย์มือ — โครง field ตั้งตามชีต "รายการหม่าว" แล้ว
+   ============================================================ */
+const CAR_SIZES = ["S","M","L","XL/SUV","PPV","MPV/VAN"];
+const BRANCHES  = ["โคราช","บุรีรัมย์"];
+const PROGRAMS  = ["Ceramic+","Graphene","SuperResin","อื่นๆ"];          // โปรแกรมเคลือบ (= บริการหลัก)
+const FILM_SETS = ["—","SetA","SetB","SetC","ฟิล์มเต็มคัน"];             // งานฟิล์ม (= ช่องติดฟิล์ม)
+
+/* กติกาตามชีต "ค่าคอมทั้งปี 2026" ตัวจริง (พิสูจน์ตรงรายคน 12/12 ทั้ง มิ.ย.+ก.ค. 2569):
+   กองกลาง/คัน = โปรแกรมเคลือบ (Ceramic 200 / Graphene 500 / Super 1000) + ฟิล์มเต็มคัน 1300
+                 — Set A/B/C ไม่เข้ากองกลาง (กติการุ่นเก่าในไฟล์ JUNE2026.xlsx เคยรวม แต่ชีตจริงเลิกแล้ว)
+   คอมพิเศษ/คัน = SetA 100 / SetB 200 / SetC 300 / ฟิล์มเต็มคัน 1200
+               + ผิวส้ม 500 อัตโนมัติทุกคัน Graphene/SuperResin */
+function jobPool(j){
+  const r = db.settings.rates;
+  return (+r.pool[j.program]||0) + (j.filmSet==="ฟิล์มเต็มคัน" ? (+r.pool["ฟิล์มเต็มคัน"]||0) : 0);
+}
+/* สัดส่วนแบ่งกองกลาง ณ วันนั้น — ฐาน 40/60 แล้วทับด้วย shareChanges ตามเดือน (30/70 ตั้งแต่ ส.ค. 2569) */
+function sharesFor(date){
+  const r = db.settings.rates;
+  let tech = +r.techShare||0, asst = +r.asstShare||0;
+  (r.shareChanges||[]).forEach(c=>{
+    if(monthOf(date) >= c.from){ tech = +c.techShare||0; asst = +c.asstShare||0; }
+  });
+  return { tech, asst };
+}
+function jobSpecial(j){
+  const sp = db.settings.rates.special;
+  // ฟิล์มเต็มคัน = เหมา 1,200 จบ ไม่บวกอย่างอื่นทับ (กติกาคุณโอ 1 ก.ย. — คันเต็มคันไม่มีโปรแกรมอื่นอยู่แล้ว)
+  if(j.filmSet==="ฟิล์มเต็มคัน") return +sp["ฟิล์มเต็มคัน"]||0;
+  let v = +sp[j.filmSet] || 0;   // SetA 100 / SetB 200 / SetC 300 (มีเคลือบหรือไม่ก็ได้)
+  if(j.program==="Graphene" || j.program==="SuperResin") v += +sp["ผิวส้ม"]||0;   // ผิวส้ม 500/คัน
+  return v;
+}
+let jobsMonth = "";
+function setJobsMonth(v){ jobsMonth = v; render(); }
+/* dropdown สาขาในแถวตาราง — สลับโคราช/บุรีรัมย์ได้ทันคัน (มีผลกติกาหมวย+ฐาน 1% ทันที) */
+function setJobBranch(id, b){
+  const j = db.jobs.find(x=>x.id===id); if(!j) return;
+  j.branch = b;
+  save(); render();
+  notify("เปลี่ยนสาขา "+(j.plate||"คันนี้")+" เป็น "+b+" แล้ว");
+}
+
+function renderJobs(){
+  const p = jobsMonth || curMonth();
+  let h = head("งานรถ", "บันทึกรายคัน — ต้นทางกองกลาง + ค่าคอมพิเศษ (เฟสหน้าดึงจากแอป Tree)", "openJobForm");
+  h += '<div class="bar"><span class="lbl">เดือน</span>'
+    + '<input class="inp" type="month" value="'+esc(p)+'" onchange="setJobsMonth(this.value)">'
+    + '<button class="btn ghost" onclick="openDb3Import()">นำเข้า Database3 (CSV)</button></div>';
+  const list = db.jobs.filter(j=>monthOf(j.date)===p);
+  const sales = list.reduce((t,j)=>t+(+j.amount||0),0);
+  const pool  = list.reduce((t,j)=>t+jobPool(j),0);
+  // แยกยอดต่อสาขา (คุณโอขอ 1 ก.ย.) — งานไม่ติดสาขานับเป็นโคราช
+  const byBr = {}; BRANCHES.forEach(b=>{ byBr[b] = { sales:0, n:0, pool:0 }; });
+  list.forEach(j=>{
+    const b = j.branch==="บุรีรัมย์" ? "บุรีรัมย์" : "โคราช";
+    byBr[b].sales += (+j.amount||0); byBr[b].n++; byBr[b].pool += jobPool(j);
+  });
+  const brSub = (key, fmt) => '<span class="sub">'
+    + BRANCHES.map(b=>esc(b)+" "+(fmt?fmt(byBr[b][key]):baht(byBr[b][key]))).join(" · ") + '</span>';
+  h += '<div class="kpis">'
+    + '<div class="kpi"><span class="lbl">ยอดขาย '+beMonth(p)+'</span><b>'+baht(sales)+'</b>'+brSub("sales")+'</div>'
+    + '<div class="kpi"><span class="lbl">คันที่ทำ</span><b>'+list.length+'</b>'+brSub("n", v=>v+" คัน")+'</div>'
+    + '<div class="kpi"><span class="lbl">กองกลางสะสม</span><b>'+baht(pool)+'</b>'+brSub("pool")+'</div></div>';
+  if(!list.length) return h + empty("เดือนนี้ยังไม่มีงาน กดปุ่ม + เพิ่ม เพื่อบันทึกคันแรก");
+  const cols = [{t:"วันที่"},{t:"ทะเบียน"},{t:"รถ"},{t:"โปรแกรม"},{t:"Set/ผิวส้ม"},{t:"สาขา"},{t:"ยอด",c:"num"},{t:"กองกลาง",c:"num"},{t:"คอมพิเศษ",c:"num"},{t:"ช่างพิเศษ"},{c:"act"}];
+  const rows = list.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(j=>[
+    thDate(j.date),
+    esc(j.plate||"—") + (j.customer ? '<div class="sub">'+esc(j.customer)+'</div>' : ""),
+    esc(j.carModel||"—") + (j.size ? '<div class="sub">'+esc(j.size)+'</div>' : ""),
+    esc(j.program||"—"),
+    esc(j.filmSet && j.filmSet!=="—" ? j.filmSet : "—"),
+    '<select class="inp" style="width:auto;padding:3px 6px;font-size:12.5px" onchange="setJobBranch(\''+j.id+'\',this.value)">'
+      + BRANCHES.map(b=>'<option'+((j.branch||"โคราช")===b?" selected":"")+'>'+b+'</option>').join("") + '</select>',
+    baht(j.amount),
+    baht(jobPool(j)),
+    baht(jobSpecial(j)),
+    esc(j.techId ? staffName(j.techId) : "—"),
+    lnk("แก้","openJobForm('"+j.id+"')") + lnk("ลบ","delRow('jobs','"+j.id+"')","del")
+  ]);
+  return h + tbl(cols, rows);
+}
+function openJobForm(id){
+  const r = id ? db.jobs.find(x=>x.id===id) : null;
+  const specials = db.staff.filter(s=>s.status!=="inactive" && s.commissionRole==="special");
+  const defTech = !r && specials.length===1 ? specials[0].id : (r ? r.techId : "");
+  const techOpts = '<option value="">—</option>' + specials.map(s=>
+    '<option value="'+s.id+'"'+(defTech===s.id?" selected":"")+'>'+esc(s.name)+'</option>').join("");
+  const opt = (arr, cur) => arr.map(x=>'<option'+(cur===x?" selected":"")+'>'+x+'</option>').join("");
+  openModal(r ? "แก้งานรถ" : "เพิ่มงานรถ",
+    fld("วันที่", '<input class="inp" type="date" id="f-date" value="'+esc(r?r.date:todayStr())+'">')
+    + fld("ทะเบียนรถ", '<input class="inp" id="f-plate" value="'+esc(r?r.plate:"")+'">')
+    + fld("รุ่นรถ", '<input class="inp" id="f-car" placeholder="เช่น BYD Sealion 6" value="'+esc(r?r.carModel:"")+'">')
+    + fld("ขนาดรถ", '<select class="inp" id="f-size">'+opt(CAR_SIZES, r?r.size:"L")+'</select>')
+    + fld("ชื่อลูกค้า", '<input class="inp" id="f-cust" value="'+esc(r?r.customer:"")+'">')
+    + fld("เบอร์โทร", '<input class="inp" id="f-tel" value="'+esc(r?r.phone:"")+'">')
+    + fld("โปรแกรมเคลือบ (บริการหลัก)", '<select class="inp" id="f-program">'+opt(PROGRAMS, r?r.program:"Graphene")+'</select>')
+    + fld("งานฟิล์ม (Set = คอมพิเศษช่าง · ฟิล์มเต็มคันเข้ากองกลางด้วย · ผิวส้มบวกอัตโนมัติเมื่อ Graphene/SuperResin)", '<select class="inp" id="f-set">'+opt(FILM_SETS, r?r.filmSet:"—")+'</select>')
+    + fld("ยอดเงิน (บาท)", '<input class="inp" type="number" id="f-amount" value="'+(r?r.amount:"")+'">')
+    + fld("ช่างพิเศษผู้ทำ (รับคอมรายคัน)", '<select class="inp" id="f-tech">'+techOpts+'</select>')
+    + fld("สาขา (กองกลางรวมกัน แต่ใช้แยกกติกาหมวย/รายงาน)", '<select class="inp" id="f-branch">'+opt(BRANCHES, r?r.branch:db.settings.branch)+'</select>')
+    + fld("หมายเหตุ", '<input class="inp" id="f-note" value="'+esc(r?r.note:"")+'">')
+    + mfoot("saveJob", id));
+}
+function saveJob(id){
+  const date = val("f-date");
+  if(!date){ notify("กรุณาเลือกวันที่"); return; }
+  const f = { date, plate:val("f-plate").trim(), carModel:val("f-car").trim(), size:val("f-size"),
+              customer:val("f-cust").trim(), phone:val("f-tel").trim(),
+              program:val("f-program"), filmSet:val("f-set"), amount:+val("f-amount")||0,
+              techId:val("f-tech"), note:val("f-note").trim(), branch:val("f-branch")||db.settings.branch };
+  if(id){ const r = db.jobs.find(x=>x.id===id); if(r) Object.assign(r, f); }
+  else { db.jobs.unshift(Object.assign({ id:uid() }, f)); }
+  save(); closeModal(); render();
+}
+/* --- นำเข้างานรถจากไฟล์ Database3 (Google Sheet Masterdata export เป็น CSV) ---
+   คอลัมน์ที่ใช้: วันที่ ("มิถุนายน 2, 2026") · ทะเบียนรถ · ชื่อลูกค้า · เบอร์โทร ·
+   ยี่ห้อรถ+รุ่นรถ · ขนาดรถ · บริการหลัก (→โปรแกรม) · ติดฟิล์ม (→งานฟิล์ม) · ราคารวม
+   เดือนที่นำเข้าซ้ำ: แถวที่มาจากการนำเข้าเดิม (source:"db3") จะถูกแทนที่ แถวที่คีย์มือไม่แตะ */
+const TH_MON_FULL = { "มกราคม":1,"กุมภาพันธ์":2,"มีนาคม":3,"เมษายน":4,"พฤษภาคม":5,"มิถุนายน":6,
+  "กรกฎาคม":7,"สิงหาคม":8,"กันยายน":9,"ตุลาคม":10,"พฤศจิกายน":11,"ธันวาคม":12 };
+function db3ParseDate(s){
+  s = String(s||"").trim();
+  const p = x=>String(x).padStart(2,"0");
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);                 // 2026-06-12 (export จาก DB_ค่าคอม)
+  if(m) return m[1]+"-"+m[2]+"-"+m[3];
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);               // 12/6/2026
+  if(m) return m[3]+"-"+p(m[2])+"-"+p(m[1]);
+  m = s.replace(",", "").split(/\s+/);                          // "มิถุนายน 12, 2026" (Database3 เดิม)
+  if(m.length>=3 && TH_MON_FULL[m[0]]) return m[2]+"-"+p(TH_MON_FULL[m[0]])+"-"+p(m[1]);
+  return "";
+}
+function db3ParseCsv(text){   // ตัว parse CSV รองรับช่องมีเครื่องหมายคำพูด/ลูกน้ำ/ขึ้นบรรทัด
+  const rows = []; let row = [], cell = "", q = false;
+  text = text.replace(/^﻿/, "");
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){ cell+='"'; i++; } else q=false; }
+      else cell += ch;
+    } else if(ch==='"') q = true;
+    else if(ch===","){ row.push(cell); cell=""; }
+    else if(ch==="\n" || ch==="\r"){
+      if(ch==="\r" && text[i+1]==="\n") i++;
+      row.push(cell); cell="";
+      if(row.some(c=>c!=="")) rows.push(row);
+      row = [];
+    } else cell += ch;
+  }
+  row.push(cell); if(row.some(c=>c!=="")) rows.push(row);
+  return rows;
+}
+/* แปลง 1 แถว export ดิบจากแอป Tree (Rawfromapp) → job ของแอป
+   วันที่ = "เวลาเข้าใช้บริการ" (กติกาคุณโอ: ค่าคอมนับตามวันรถเข้า) · ข้ามแถวที่ยกเลิกใบงาน
+   โปรแกรม+Set แกะจากช่อง "บริการ" (ข้อความรวม เช่น "Super Resin 2Y + Set B- Blue")
+   ยอดขาย = ราคารวม + เงินมัดจำ (กติกาคุณโอ 1 ก.ย.: มัดจำนับเป็นยอดขาย — มีผลกับ 1% หมวย) */
+function treeParseDate(dt){
+  dt = String(dt||"").trim();
+  const p = x=>String(x).padStart(2,"0");
+  const m = dt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return m[3]+"-"+p(m[2])+"-"+p(m[1]);
+  if(/^\d{4,6}(\.\d+)?$/.test(dt)){
+    // บางแถว Tree export วันที่หลุดมาเป็นเลข serial ของ Google Sheets (เช่น 46265.49653 = 31/08/2026)
+    const d = new Date(Date.UTC(1899,11,30) + Math.floor(+dt) * 86400000);
+    return d.getUTCFullYear()+"-"+p(d.getUTCMonth()+1)+"-"+p(d.getUTCDate());
+  }
+  return "";
+}
+function treeMapRow(o, branch, from){
+  if(String(o["สถานะใบงาน"]||"").indexOf("ยกเลิก")>=0) return null;
+  let date = treeParseDate(o["เวลาเข้าใช้บริการ"]);
+  // รถค้างข้ามเดือน (เข้าก่อนเดือนที่นำเข้า แต่รับรถในเดือนนั้น) → ใช้วันรับรถ
+  // กติกาคุณโอ 1 ก.ย.: ยอดขายเดือนต้องเท่ากับผลรวมทุกใบในไฟล์ Tree ของเดือนนั้นเป๊ะ
+  if(from && date && monthOf(date) < from){
+    const rdate = treeParseDate(o["เวลารับรถ"]);
+    if(rdate && monthOf(rdate) >= from) date = rdate;
+  }
+  if(!date) return null;
+  const svc = String(o["บริการ"]||"").trim();
+  const s = svc.toLowerCase();
+  let program = "อื่นๆ";
+  if(s.indexOf("ceramic")>=0) program = "Ceramic+";
+  if(s.indexOf("graphene")>=0) program = "Graphene";
+  if(s.indexOf("super")>=0) program = "SuperResin";
+  let filmSet = "—";
+  if(svc.indexOf("ฟิล์มเต็มคัน")>=0) filmSet = "ฟิล์มเต็มคัน";
+  else { const sm = s.match(/set\s*-?\s*([abc])/); if(sm) filmSet = "Set" + sm[1].toUpperCase(); }
+  const money = v => +String(v||"0").replace(/[",]/g,"")||0;
+  // ยอดขาย = "ราคารวม" ของทุกใบตรงๆ (คุณโอยืนยัน 1 ก.ย.: ต้องเท่ากับผลรวมใน CSV เป๊ะ —
+  // ใบเงินมัดจำนับของมันเอง ใบงานจริงนับเต็มตามราคารวม ห้ามหักมัดจำออก)
+  const amount = money(o["ราคารวม"]);
+  return { date, plate:String(o["ทะเบียน"]||"").trim(),
+    carModel:String(o["ยี่ห้อ รุ่น"]||"").trim(), size:String(o["ขนาด"]||"").trim(),
+    customer:String(o["ชื่อลูกค้า"]||"").trim(), phone:String(o["เบอร์ติดต่อ"]||"").trim(),
+    program, filmSet, amount,
+    note:svc, source:"db3", branch: branch || db.settings.branch };
+}
+function db3MapRow(o, branch){   // แปลง 1 แถว Database3/DB_ค่าคอม → job ของแอป (กติกาเดียวกับสูตรชีต)
+  const date = db3ParseDate(o["วันที่"]);
+  if(!date) return null;
+  const svc = String(o["บริการหลัก"]||"").toLowerCase();
+  let program = "อื่นๆ";
+  if(svc.indexOf("ceramic")>=0) program = "Ceramic+";
+  if(svc.indexOf("graphene")>=0) program = "Graphene";
+  if(svc.indexOf("super")>=0) program = "SuperResin";
+  const f = String(o["ติดฟิล์ม"]||"").trim();
+  const filmSet = FILM_SETS.indexOf(f)>0 ? f : "—";
+  return { date, plate:String(o["ทะเบียนรถ"]||"").trim(),
+    carModel:(String(o["ยี่ห้อรถ"]||"").trim()+" "+String(o["รุ่นรถ"]||"").trim()).trim(),
+    size:String(o["ขนาดรถ"]||"").trim(), customer:String(o["ชื่อลูกค้า"]||"").trim(),
+    phone:String(o["เบอร์โทร"]||"").trim(), program, filmSet,
+    amount:+String(o["ราคารวม"]||"0").replace(/,/g,"")||0,
+    note:String(o["บริการหลัก"]||"").trim(), source:"db3", branch: branch || db.settings.branch };
+}
+function openDb3Import(){
+  openModal("นำเข้า Database3 (CSV)",
+    '<div class="note">รับ 2 แบบ (ระบบดูหัวคอลัมน์เอง): <b>export ดิบจากแอป Tree</b> (แนะนำ — วันที่ = วันรถเข้า · ยอดขายรวมเงินมัดจำ · ข้ามใบงานที่ยกเลิก) '
+    + 'หรือชีต Database3/DB_ค่าคอม · จะนำเข้าเฉพาะเดือนที่เลือกเป็นต้นไป · เดือน+สาขาที่เคยนำเข้าแล้วระบบแทนที่ให้ (ที่คีย์มือไม่หาย)</div>'
+    + fld("ไฟล์นี้เป็นงานของสาขา", '<select class="inp" id="f-imp-branch">'
+        + BRANCHES.map(b=>'<option'+(b===db.settings.branch?" selected":"")+'>'+b+'</option>').join("") + '</select>')
+    + fld("นำเข้าตั้งแต่เดือน", '<input class="inp" type="month" id="f-imp-from" value="2026-08">')
+    + fld("ไฟล์ CSV", '<input class="inp" type="file" accept=".csv,text/csv" id="f-imp-file">')
+    + '<div id="f-imp-result" class="sub"></div>'
+    + mfoot("runDb3Import", "", "นำเข้า"));
+}
+function runDb3Import(){
+  const el = document.getElementById("f-imp-file");
+  const from = val("f-imp-from") || "2026-07";
+  if(!el.files.length){ notify("เลือกไฟล์ CSV ก่อนครับ"); return; }
+  const rd = new FileReader();
+  rd.onload = function(){
+    const rows = db3ParseCsv(String(rd.result));
+    if(rows.length < 2){ notify("อ่านไฟล์ไม่ได้ หรือไฟล์ว่าง"); return; }
+    const headRow = rows[0].map(hh=>String(hh).replace(/^﻿/,"").trim());
+    // รองรับ 2 แบบ: ไฟล์ชีต (Database3/DB_ค่าคอม) หรือ export ดิบจากแอป Tree — ดูจากหัวคอลัมน์
+    const isSheet = headRow.indexOf("วันที่")>=0 && headRow.indexOf("บริการหลัก")>=0;
+    const isTree  = headRow.indexOf("เวลาเข้าใช้บริการ")>=0 && headRow.indexOf("บริการ")>=0;
+    if(!isSheet && !isTree){
+      notify("ไม่รู้จักหน้าตาไฟล์ — ต้องเป็นชีต Database3/DB_ค่าคอม (มีคอลัมน์ วันที่+บริการหลัก) หรือ export จากแอป Tree (มีคอลัมน์ เวลาเข้าใช้บริการ+บริการ)"); return;
+    }
+    const impBranch = val("f-imp-branch") || db.settings.branch;
+    const jobs = [];
+    for(let i=1;i<rows.length;i++){
+      const o = {}; headRow.forEach((hName,k)=>{ o[hName]=rows[i][k]; });
+      const j = isTree ? treeMapRow(o, impBranch, from) : db3MapRow(o, impBranch);
+      if(j && monthOf(j.date) >= from) jobs.push(j);
+    }
+    if(!jobs.length){ notify("ไม่พบแถวตั้งแต่เดือน "+from+" ในไฟล์"); return; }
+    const months = {};
+    jobs.forEach(j=>{ months[monthOf(j.date)] = (months[monthOf(j.date)]||0)+1; });
+    // แทนที่เฉพาะ "เดือน+สาขาเดียวกัน" — นำเข้าไฟล์โคราชกับบุรีรัมย์เดือนเดียวกันได้ ไม่ทับกัน
+    const sameBranch = j => (j.branch||"โคราช") === impBranch;
+    const replaced = db.jobs.filter(j=>j.source==="db3" && months[monthOf(j.date)] && sameBranch(j)).length;
+    appConfirm("นำเข้า "+jobs.length+" คัน สาขา"+impBranch+" ("+Object.keys(months).sort().map(m=>beMonth(m)+" "+months[m]+" คัน").join(" · ")+")"
+        + (replaced ? "\nแทนที่ของเดิมสาขานี้ที่เคยนำเข้า "+replaced+" คัน" : "") + "\nยืนยันไหม?", ()=>{
+      db.jobs = db.jobs.filter(j=>!(j.source==="db3" && months[monthOf(j.date)] && sameBranch(j)));
+      const specials = db.staff.filter(s=>s.status!=="inactive" && s.commissionRole==="special");
+      const techId = specials.length===1 ? specials[0].id : "";
+      jobs.forEach(j=>{ db.jobs.unshift(Object.assign({ id:uid(), techId:(jobSpecial(j)>0?techId:"") }, j)); });
+      save(); closeModal();
+      jobsMonth = Object.keys(months).sort()[0];
+      render();
+      notify("นำเข้าเรียบร้อย " + jobs.length + " คัน — อย่าลืมเช็คชื่อย้อนหลังของเดือนนั้นด้วย ไม่งั้นกองกลางยังหารไม่ได้");
+    }, "นำเข้า");
+  };
+  rd.readAsText(el.files[0], "utf-8");
+}
+registerModule({ key:"jobs", ic:"🚗", label:"งานรถ", render: renderJobs });
+
+/* ============================================================
+   เอนจินค่าคอม — derived ทั้งหมด คำนวณสดตอน render ห้ามเก็บลง db
+   กติกา (ตามชีตค่าคอมทั้งปี 2026 ตัวจริง):
+   - กองกลาง/คัน ตามโปรแกรม → แบ่งช่าง 40% / ผู้ช่วย 60% หารต่อหัวคนที่มาวันนั้น
+   - ช่างพิเศษ (special): ได้คอมรายคันของตัวเองแทนส่วนแบ่งกองกลาง แต่**ยังนับเป็นตัวหาร**ฝั่งช่าง
+   - ผู้ช่วยพิเศษ (percent): ได้ % ยอดขายทั้งวัน (ไม่ผูกเช็คชื่อ — ก.พ. ชีตจ่ายทั้งที่เช็คชื่อว่าง)
+     และ**ไม่นับเป็นตัวหาร**ฝั่งผู้ช่วย (คอลัมน์ "ผู้ช่วยมา" ของชีต Commission ไม่รวมหมวย)
+   ============================================================ */
+function dayCommission(date){
+  const s = db.settings.rates;
+  const jobs = db.jobs.filter(j=>j.date===date);   // ทุกสาขารวมกอง (กติกาคุณโอ: รถสองสาขารวมกัน สูตรเดิม)
+  const sales = jobs.reduce((t,j)=>t+(+j.amount||0),0);
+  const pool  = jobs.reduce((t,j)=>t+jobPool(j),0);
+  // ตำแหน่ง "ณ วันนั้น" มากับ record เช็คชื่อ (a.role) — คนเปลี่ยนตำแหน่ง (เช่น ปอนด์ ก.ย. 2569
+  // ช่าง→ผู้ช่วย) ประวัติเดือนเก่าต้องไม่เพี้ยน · record เก่าที่ไม่มี role ใช้ตำแหน่งปัจจุบันแทน
+  const present = {}, roleOf = {};
+  db.attendance.forEach(a=>{ if(a.date===date){ present[a.staffId] = true; if(a.role) roleOf[a.staffId] = a.role; } });
+  const dayRole = st => roleOf[st.id] || st.role;
+  // ตัวหาร: เฉพาะคนในระบบกองกลาง (percent/none ไม่นับ — ตรงคอลัมน์ ช่างมา/ผู้ช่วยมา ของชีต)
+  const techs = db.staff.filter(st=>present[st.id] && dayRole(st)==="ช่าง"
+                                 && (st.commissionRole==="pool" || st.commissionRole==="special"));
+  const assts = db.staff.filter(st=>present[st.id] && dayRole(st)==="ผู้ช่วย" && st.commissionRole==="pool");
+  const sh = sharesFor(date);
+  const techEach = techs.length ? pool*sh.tech/techs.length : 0;
+  const asstEach = assts.length ? pool*sh.asst/assts.length : 0;
+  const special = {};   // staffId → Σ คอมพิเศษรายคันของวันนั้น
+  jobs.forEach(j=>{ if(j.techId) special[j.techId] = (special[j.techId]||0) + jobSpecial(j); });
+  // กติกาหมวยสองสาขา (คุณโอเคาะ 1 ก.ย. 2569 — สูตรสุดท้าย): วันที่คนแบบ percent เช็คชื่อ "ไปบุรีรัมย์"
+  // → งด 1% วันนั้น และกลายเป็น "ผู้ช่วยของกองรวมทั้งสองสาขา" เต็มตัว:
+  //   มีส่วนร่วมทุกคันรวมโคราชด้วย (ถือว่าเสียสละไปช่วยสาขา) = ตัวหารฝั่งผู้ช่วย +1 แล้วรับเท่าคนอื่นเป๊ะ
+  const away = {};
+  db.attendance.forEach(a=>{ if(a.date===date && a.branch==="บุรีรัมย์") away[a.staffId] = true; });
+  const awayCount = db.staff.filter(st=>present[st.id] && st.commissionRole==="percent" && away[st.id]).length;
+  const asstDivisor = assts.length + awayCount;
+  const asstEachAll = asstDivisor ? pool*sh.asst/asstDivisor : 0;
+  // 1% ของ percent คิดจากยอดโคราชเท่านั้น (คุณโอเคาะ 1 ก.ย.) — งานที่ไม่ติดสาขาบุรีรัมย์นับเป็นโคราช
+  const salesKorat = jobs.filter(j=>j.branch!=="บุรีรัมย์").reduce((t,j)=>t+(+j.amount||0),0);
+  return { date, sales, salesKorat, pool, techEach, asstEach:asstEachAll, nTech:techs.length, nAsst:asstDivisor,
+           special, present, roleOf, away };
+}
+function staffDayComm(st, dc){
+  if(st.commissionRole==="special") return dc.special[st.id] || 0;                 // คอมรายคันตามงานที่ทำ
+  if(st.commissionRole==="percent")
+    return dc.present[st.id] && dc.away[st.id]
+      ? dc.asstEach                                        // วันไปบุรีรัมย์: เป็นผู้ช่วยกองรวม รับเท่าคนอื่น งด 1%
+      : dc.salesKorat * db.settings.rates.percentRate;     // วันปกติ: % ยอดโคราชเท่านั้น ไม่ผูกเช็คชื่อ
+  if(!dc.present[st.id]) return 0;
+  if(st.commissionRole==="pool"){
+    const r = dc.roleOf[st.id] || st.role;   // ส่วนแบ่งตามตำแหน่ง ณ วันนั้น
+    return r==="ช่าง" ? dc.techEach : r==="ผู้ช่วย" ? dc.asstEach : 0;
+  }
+  return 0;
+}
+function monthDates(period){
+  const set = {};
+  db.jobs.forEach(j=>{ if(monthOf(j.date)===period) set[j.date]=1; });
+  return Object.keys(set).sort();
+}
+function monthCommission(staffId, period){
+  const st = db.staff.find(x=>x.id===staffId); if(!st) return 0;
+  return monthDates(period).reduce((t,d)=> t + staffDayComm(st, dayCommission(d)), 0);
+}
+
+let commMonth = "";
+function setCommMonth(v){ commMonth = v; render(); }
+function renderCommission(){
+  const p = commMonth || curMonth();
+  const s = db.settings.rates;
+  const shNow = sharesFor(p + "-01");
+  let h = head("ค่าคอม", "คำนวณสดจากงานรถ + เช็คชื่อ · เดือนนี้ ช่าง "+Math.round(shNow.tech*100)+"% / ผู้ช่วย "+Math.round(shNow.asst*100)+"% · พิเศษ "+(s.percentRate*100)+"% ยอดโคราช", "");
+  h += '<div class="bar"><span class="lbl">เดือน</span>'
+    + '<input class="inp" type="month" value="'+esc(p)+'" onchange="setCommMonth(this.value)">'
+    + '<button class="btn ghost" onclick="exportCommission(\''+p+'\')">ออกไฟล์ CSV เดือนนี้</button></div>';
+  const dates = monthDates(p);
+  if(!dates.length) return h + empty("เดือนนี้ยังไม่มีงานรถ — บันทึกที่แท็บงานรถก่อน ค่าคอมจะคำนวณให้เอง");
+  const days = dates.map(dayCommission);
+  const sales = days.reduce((t,d)=>t+d.sales,0);
+  const pool  = days.reduce((t,d)=>t+d.pool,0);
+  const active = db.staff.filter(st=>st.status!=="inactive");
+  const perStaff = active.map(st=>({ st, comm: days.reduce((t,dc)=>t+staffDayComm(st,dc),0) }));
+  const commTotal = perStaff.reduce((t,x)=>t+x.comm,0);
+  // แยกยอดต่อสาขาใน KPI (งานไม่ติดสาขานับเป็นโคราช)
+  const mJobs = db.jobs.filter(j=>monthOf(j.date)===p);
+  const cBr = {}; BRANCHES.forEach(b=>{ cBr[b] = { sales:0, pool:0 }; });
+  mJobs.forEach(j=>{
+    const b = j.branch==="บุรีรัมย์" ? "บุรีรัมย์" : "โคราช";
+    cBr[b].sales += (+j.amount||0); cBr[b].pool += jobPool(j);
+  });
+  const cSub = key => '<span class="sub">'+BRANCHES.map(b=>esc(b)+" "+baht(cBr[b][key])).join(" · ")+'</span>';
+  h += '<div class="kpis">'
+    + '<div class="kpi"><span class="lbl">ยอดขาย '+beMonth(p)+'</span><b>'+baht(sales)+'</b>'+cSub("sales")+'</div>'
+    + '<div class="kpi"><span class="lbl">กองกลางรวม (สองสาขารวมกองเดียว)</span><b>'+baht(pool)+'</b>'+cSub("pool")+'</div>'
+    + '<div class="kpi"><span class="lbl">ค่าคอมจ่ายรวม</span><b>'+baht(commTotal)+'</b></div></div>';
+
+  h += '<div class="sub">สรุปต่อคน (เอาไปเข้างวดเงินเดือนอัตโนมัติ)</div>';
+  h += tbl([{t:"พนักงาน"},{t:"ตำแหน่ง"},{t:"รูปแบบ"},{t:"ค่าคอมเดือนนี้",c:"num"},{c:"act"}],
+    perStaff.slice().sort((a,b)=>b.comm-a.comm).map(x=>[
+      esc(x.st.name), esc(x.st.role||"—"), esc(COMM_ROLES[x.st.commissionRole]||"—"), "<b>"+baht(x.comm)+"</b>",
+      x.st.commissionRole==="special" ? lnk("รายคัน","openSpecialDetail('"+x.st.id+"','"+p+"')") : ""
+    ]));
+
+  h += '<div class="sub">รายวัน (แบบชีต Commission)</div>';
+  const spSum = dc => Object.keys(dc.special).reduce((t,k)=>t+dc.special[k],0);
+  h += tbl([{t:"วันที่"},{t:"ยอดขาย",c:"num"},{t:"กองกลาง",c:"num"},{t:"คอม/ช่าง",c:"num"},{t:"คอม/ผู้ช่วย",c:"num"},{t:"พิเศษรายคัน",c:"num"},{t:"ช่างมา",c:"num"},{t:"ผู้ช่วยมา",c:"num"}],
+    days.map(dc=>[
+      thDate(dc.date), baht(dc.sales), baht(dc.pool), baht(dc.techEach), baht(dc.asstEach),
+      baht(spSum(dc)), String(dc.nTech), String(dc.nAsst)
+    ]));
+  return h;
+}
+/* รายคันของช่างพิเศษ (หม่าว) — โชว์สาขาต่อคัน + สรุปแยกสาขา (คุณโอขอ 1 ก.ย. 2569) */
+function openSpecialDetail(staffId, period){
+  const st = db.staff.find(x=>x.id===staffId); if(!st) return;
+  const cars = db.jobs
+    .filter(j=>j.techId===staffId && monthOf(j.date)===period && jobSpecial(j)>0)
+    .sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  if(!cars.length){ openModal("รายคัน — "+esc(st.name)+" "+beMonth(period), empty("เดือนนี้ยังไม่มีคันที่เกิดคอมพิเศษ")); return; }
+  const byBranch = {};
+  cars.forEach(j=>{
+    const b = j.branch==="บุรีรัมย์" ? "บุรีรัมย์" : "โคราช";
+    byBranch[b] = byBranch[b] || { n:0, comm:0 };
+    byBranch[b].n++; byBranch[b].comm += jobSpecial(j);
+  });
+  let body = '<div class="kpis">'
+    + BRANCHES.filter(b=>byBranch[b]).map(b=>
+        '<div class="kpi"><span class="lbl">'+esc(b)+'</span><b>'+baht(byBranch[b].comm)+'</b>'
+        + '<span class="sub">'+byBranch[b].n+' คัน</span></div>').join('')
+    + '</div>';
+  body += tbl([{t:"วันที่"},{t:"รถ"},{t:"งาน"},{t:"สาขา"},{t:"คอม",c:"num"}],
+    cars.map(j=>[
+      thDate(j.date),
+      esc((j.plate||"")+" "+(j.carModel||"")).trim() || "—",
+      esc(j.program + (j.filmSet!=="—" ? " + "+j.filmSet : "")),
+      chip(j.branch==="บุรีรัมย์" ? "บุรีรัมย์" : "โคราช", j.branch==="บุรีรัมย์" ? "c-ใหม่" : "c-เสร็จ"),
+      "<b>"+baht(jobSpecial(j))+"</b>"
+    ]));
+  openModal("รายคัน — "+esc(st.name)+" · "+beMonth(period)+" ("+cars.length+" คัน รวม "+baht(cars.reduce((t,j)=>t+jobSpecial(j),0))+" บาท)", body);
+}
+function exportCommission(p){
+  const dates = monthDates(p);
+  const days = dates.map(dayCommission);
+  const active = db.staff.filter(st=>st.status!=="inactive");
+  csvDownload("ค่าคอม-"+beMonth(p)+"-สรุปรายคน.csv",
+    [["พนักงาน","ตำแหน่ง","รูปแบบค่าคอม","ค่าคอมเดือน "+beMonth(p)]].concat(
+      active.map(st=>[st.name, st.role||"", COMM_ROLES[st.commissionRole]||"", days.reduce((t,dc)=>t+staffDayComm(st,dc),0).toFixed(2)])));
+  csvDownload("ค่าคอม-"+beMonth(p)+"-รายวัน.csv",
+    [["วันที่","ยอดขาย","กองกลาง","คอมต่อช่าง","คอมต่อผู้ช่วย","ช่างมา","ผู้ช่วยมา"]].concat(
+      days.map(dc=>[dc.date, dc.sales, dc.pool, dc.techEach.toFixed(2), dc.asstEach.toFixed(2), dc.nTech, dc.nAsst])));
+}
+registerModule({ key:"commission", ic:"🧮", label:"ค่าคอม", render: renderCommission });
+
+/* ============================================================
+   แท็บเงินเดือน — งวดยังไม่ปิด = พรีวิวสด, ปิดงวด = แช่แข็ง lines
+   สุทธิ = ฐาน + ค่าบ้าน + ค่าคอม + OT ธรรมดา(×1.5) + OT วันหยุด(×2) − ปกส. − เบิก
+   ============================================================ */
+function calcLine(staff, period){
+  const S = db.settings;
+  const base = +staff.salary || 0;
+  const house = +staff.houseAllow || 0;
+  const att = db.attendance.filter(a => a.staffId === staff.id && monthOf(a.date) === period);
+  const otN = att.reduce((t,a)=> t + otSplit(a).n, 0);
+  const otH = att.reduce((t,a)=> t + otSplit(a).h, 0);
+  const hourRate = base/30/8;
+  const otNPay = hourRate * S.otMult * otN;
+  const otHPay = hourRate * S.otHolidayMult * otH;
+  const comm = monthCommission(staff.id, period);
+  const sso = Math.min(base * S.ssoRate, S.ssoCap);
+  const tax = 0;   // ตัวอย่าง: ยังไม่คิดภาษีในเดโม่ (จริงต้องคิดตามฐานภาษีปีปัจจุบัน)
+  // หักเบิกล่วงหน้าอัตโนมัติ — นับเฉพาะที่ "โอนแล้ว" ในเดือนนั้น (เงินออกไปจริง)
+  const advance = (db.advances||[])
+    .filter(a => a.staffId===staff.id && a.status==="paid"
+              && monthOf(a.paid_at || a.requested_at)===period)
+    .reduce((t,a)=> t + (+a.amount||0), 0);
+  const net = base + house + comm + otNPay + otHPay - sso - tax - advance;
+  return { staffId:staff.id, name:staff.name, base, house, comm,
+           otNHours:otN, otNPay, otHHours:otH, otHPay, sso, tax, advance, net };
+}
+function payStaff(){ return db.staff.filter(s => (+s.salary||0) > 0 && s.status!=="inactive"); }
+function payLines(p){ return p.closed ? p.lines : payStaff().map(s=>calcLine(s, p.period)); }
+
+function renderPayrolls(){
+  const S = db.settings;
+  let h = head("เงินเดือน", "ออกงวด → ปิดงวด → พิมพ์สลิป · ค่าคอมดึงจากแท็บค่าคอมอัตโนมัติ", "openPayrollForm");
+  h += '<div class="note">'+esc(RATE_NOTE)+' · ปกส. '+(S.ssoRate*100)+'% เพดาน '+S.ssoCap+' · OT ×'+S.otMult+' · OT วันหยุด ×'+S.otHolidayMult+'</div>';
+  if(!db.payrolls.length) return h + empty("ยังไม่มีงวดเงินเดือน กดปุ่ม + เพิ่ม เพื่อออกงวดแรก");
+  const cols = [{t:"งวด"},{t:"จำนวนคน",c:"num"},{t:"ยอดสุทธิรวม",c:"num"},{t:"สถานะ"},{c:"act"}];
+  const rows = db.payrolls.map(p=>{
+    const lines = payLines(p);
+    const act = p.closed
+      ? lnk("ดูสลิป","openPayrollDetail('"+p.id+"')")
+      : lnk("ดูพรีวิว","openPayrollDetail('"+p.id+"')")
+        + lnk("ปิดงวด","closePayroll('"+p.id+"')")
+        + lnk("ลบ","delRow('payrolls','"+p.id+"')","del");
+    return [
+      esc(p.period),
+      String(lines.length),
+      baht(lines.reduce((t,l)=>t+l.net,0)),
+      p.closed ? chip("ปิดงวดแล้ว","c-เสร็จ") : chip("ร่าง","c-ใหม่"),
+      act
+    ];
+  });
+  return h + tbl(cols, rows);
+}
+function openPayrollForm(id){
+  const r = id ? db.payrolls.find(x=>x.id===id) : null;
+  openModal("ออกงวดเงินเดือน",
+    fld("เดือน", '<input class="inp" type="month" id="f-period" value="'+esc(r?r.period:todayStr().slice(0,7))+'">')
+    + mfoot("savePayroll", id));
+}
+function savePayroll(id){
+  const period = val("f-period");
+  if(!period){ notify("กรุณาเลือกเดือน"); return; }
+  if(id){
+    const r = db.payrolls.find(x=>x.id===id);
+    if(r && !r.closed) r.period = period;
+  } else {
+    db.payrolls.unshift({ id:uid(), period, closed:false, closedAt:null,
+      ssoRate:null, ssoCap:null, otMult:null, otHolidayMult:null, note:RATE_NOTE, lines:[] });
+  }
+  save(); closeModal(); render();
+}
+function openPayrollDetail(id){
+  const p = db.payrolls.find(x=>x.id===id); if(!p) return;
+  const lines = payLines(p);
+  const banner = p.closed
+    ? '<div class="note">ปิดงวดแล้ว · อัตราที่ใช้: ปกส. '+(p.ssoRate*100)+'% เพดาน '+p.ssoCap+' · OT ×'+p.otMult+' · วันหยุด ×'+p.otHolidayMult+'</div>'
+    : '<div class="note">ยังไม่ปิดงวด (ตัวเลขยังเปลี่ยนได้)</div>';
+  let body;
+  if(!lines.length){
+    body = empty("ยังไม่มีพนักงานที่มีเงินเดือนในงวดนี้");
+  } else {
+    const cols = [{t:"ชื่อ"},{t:"ฐาน",c:"num"},{t:"ค่าบ้าน",c:"num"},{t:"ค่าคอม",c:"num"},{t:"OT",c:"num"},{t:"หัก ปกส.",c:"num"},{t:"หักเบิก",c:"num"},{t:"สุทธิ",c:"num"}];
+    if(p.closed) cols.push({c:"act"});
+    const rows = lines.map(l=>{
+      const r = [esc(l.name), baht(l.base), baht(l.house||0), baht(l.comm||0),
+                 baht((l.otNPay||0)+(l.otHPay||0)), baht(l.sso), baht(l.advance||0), baht(l.net)];
+      if(p.closed) r.push(lnk("พิมพ์สลิป","printSlip('"+p.id+"','"+l.staffId+"')"));
+      return r;
+    });
+    body = tbl(cols, rows);
+  }
+  openModal("งวด " + p.period, banner + body);
+}
+function closePayroll(id){
+  const p = db.payrolls.find(x=>x.id===id); if(!p) return;
+  if(p.closed === true) return;   // กันปิดซ้ำ
+  appConfirm("ปิดงวดแล้วตัวเลขจะถูกแช่แข็งถาวร แก้ไม่ได้อีก ยืนยันไหม?", ()=>{
+    const S = db.settings;
+    p.lines   = payStaff().map(s=>calcLine(s, p.period));   // คำนวณครั้งสุดท้าย
+    p.ssoRate = S.ssoRate; p.ssoCap = S.ssoCap; p.otMult = S.otMult; p.otHolidayMult = S.otHolidayMult;   // แช่แข็งอัตรา
+    p.closed  = true; p.closedAt = todayStr();
+    save(); render();   // หลังจากนี้ lines คือ snapshot ห้ามแตะ
+  }, "ปิดงวด");
+}
+function printSlip(payrollId, staffId){
+  const p = db.payrolls.find(x=>x.id===payrollId); if(!p || !p.closed) return;
+  const l = p.lines.find(x=>x.staffId===staffId); if(!l) return;
+  const row = (k,v)=>'<tr><td>'+k+'</td><td>'+v+'</td></tr>';
+  document.getElementById("print").innerHTML =
+    '<div class="slip"><h2>สลิปเงินเดือน</h2>'
+    + '<div class="meta">Albatros สาขา'+esc(db.settings.branch)+' · งวด '+esc(p.period)+' ('+thMonth(p.period)+') · ปิดงวด '+thDate(p.closedAt)+'</div>'
+    + '<table>'
+    + row("ชื่อพนักงาน", esc(l.name))
+    + row("เงินเดือนฐาน", baht(l.base)+" บาท")
+    + row("ค่าบ้าน", baht(l.house||0)+" บาท")
+    + row("ค่าคอมมิชชั่น", baht(l.comm||0)+" บาท")
+    + row("OT ธรรมดา ("+(l.otNHours||0).toFixed(1)+" ชม. × "+p.otMult+")", baht(l.otNPay||0)+" บาท")
+    + row("OT วันหยุด ("+(l.otHHours||0).toFixed(1)+" ชม. × "+p.otHolidayMult+")", baht(l.otHPay||0)+" บาท")
+    + row("หัก ประกันสังคม ("+(p.ssoRate*100)+"% เพดาน "+p.ssoCap+")", "-"+baht(l.sso)+" บาท")
+    + row("หัก เบิกล่วงหน้า", "-"+baht(l.advance||0)+" บาท")
+    + row("หัก ภาษี ณ ที่จ่าย", "-"+baht(l.tax)+" บาท")
+    + '<tr class="tot"><td>ยอดสุทธิ</td><td>'+baht(l.net)+' บาท</td></tr>'
+    + '</table>'
+    + '<div class="foot">'+esc(RATE_NOTE)+'<br>เอกสารนี้ออกจากระบบช่วยคำนวณ ไม่ใช่คำแนะนำทางภาษี</div>'
+    + '</div>';
+  document.body.classList.add("printing");
+  window.print();
+  document.body.classList.remove("printing");
+  document.getElementById("print").innerHTML = "";
+}
+registerModule({ key:"payrolls", ic:"💵", label:"เงินเดือน", render: renderPayrolls });
+
+/* ============================================================
+   แท็บเบิกเงิน — พนักงานยื่นจากหน้า popup (ลิงก์ไลน์) เข้าก้อนข้อมูลเดียวกัน
+   สถานะเดินหน้าเดียว: รออนุมัติ → รอโอน → โอนแล้ว(แนบสลิป+ลง db.money) / ปฏิเสธ
+   โอนแล้ว = แช่แข็ง ห้ามแตะ (แพตเทิร์น stockDeducted)
+   ============================================================ */
+const ADV_LIMIT_MONTH = 3000;   // เพดานเตือน บาท/คน/เดือน (เตือนเฉยๆ เจ้าของตัดสิน)
+const ADV_STATUS = {
+  pending:  ["รออนุมัติ", "c-ใหม่"],
+  approved: ["รอโอน",     "c-ปิด"],
+  paid:     ["โอนแล้ว",   "c-เสร็จ"],
+  rejected: ["ปฏิเสธ",    "c-เกิน"]
+};
+function advChip(st){ const s = ADV_STATUS[st] || [st, ""]; return chip(s[0], s[1]); }
+function advCommitted(staffId, period){
+  return db.advances
+    .filter(a => a.staffId === staffId && monthOf(a.requested_at) === period
+              && (a.status === "approved" || a.status === "paid"))
+    .reduce((t, a) => t + (+a.amount || 0), 0);
+}
+
+function renderAdvances(){
+  const p = curMonth(), today = todayStr();
+  const paidDate = a => String(a.paid_at || a.requested_at).slice(0, 10);
+  const paidM = db.advances.filter(a => a.status === "paid" && monthOf(paidDate(a)) === p);
+  const sumM = paidM.reduce((t, a) => t + (+a.amount || 0), 0);
+  const sumToday = paidM.filter(a => paidDate(a) === today).reduce((t, a) => t + (+a.amount || 0), 0);
+  const nP = db.advances.filter(a => a.status === "pending").length;
+  const nA = db.advances.filter(a => a.status === "approved").length;
+
+  let h = head("เบิกเงิน", "ยื่นเบิก → อนุมัติ → โอน+แนบสลิป · หักจากเงินเดือนงวดเดียวกันอัตโนมัติ", "openAdvForm");
+  h += '<div class="kpis">'
+    + '<div class="kpi"><span class="lbl">วันนี้โอนเพิ่ม</span><b>' + baht(sumToday) + '</b></div>'
+    + '<div class="kpi"><span class="lbl">เดือน ' + thDate(p + "-01").replace(/^\d+\s/, "") + ' เบิกและโอนแล้ว</span><b>' + baht(sumM) + '</b></div></div>';
+  if (nP || nA)
+    h += '<div class="note">มีรายการค้าง: รออนุมัติ ' + nP + ' · รอโอน ' + nA + ' รายการ</div>';
+
+  if(!db.advances.length)
+    return h + empty("ยังไม่มีรายการเบิก — กด + เพิ่ม เพื่อคีย์แทนพนักงาน");
+
+  /* สรุปรายคน เดือนปัจจุบัน (เฉพาะ paid) */
+  const byStaff = {};
+  paidM.forEach(a => {
+    const k = a.staffId;
+    byStaff[k] = byStaff[k] || { m: 0, t: 0 };
+    byStaff[k].m += +a.amount || 0;
+    if (paidDate(a) === today) byStaff[k].t += +a.amount || 0;
+  });
+  const sumRows = Object.keys(byStaff)
+    .sort((x, y) => byStaff[y].m - byStaff[x].m)
+    .map(k => {
+      const st = db.staff.find(s => s.id === k), sal = st ? +st.salary || 0 : 0;
+      return [
+        esc(staffName(k)),
+        sal ? baht(sal) : "—",
+        "<b>" + baht(byStaff[k].m) + "</b>"
+          + (sal ? '<div class="sub">' + Math.round(byStaff[k].m / sal * 100) + '% ของเงินเดือน</div>' : "")
+          + (byStaff[k].m > ADV_LIMIT_MONTH ? '<div class="neg" style="font-size:12px;font-weight:700">เกินเพดาน</div>' : ""),
+        byStaff[k].t ? "+" + baht(byStaff[k].t) : "—"
+      ];
+    });
+  if (sumRows.length)
+    h += tbl([{t:"พนักงาน"},{t:"ฐานเงินเดือน",c:"num"},{t:"เดือนนี้เบิกและโอนแล้ว",c:"num"},{t:"วันนี้โอนเพิ่ม",c:"num"}], sumRows);
+
+  /* รายการทั้งหมด (รอดำเนินการก่อน แล้วใหม่สุดก่อน) */
+  const order = a => a.status==="pending" ? 0 : a.status==="approved" ? 1 : 2;
+  const list = db.advances.slice().sort((a,b)=> order(a)-order(b)
+    || String(b.requested_at||"").localeCompare(String(a.requested_at||"")));
+  const rows = list.map(a => {
+    let act = "";
+    if(a.status==="pending")
+      act = lnk("อนุมัติ","advDecide('"+a.id+"',true)") + lnk("ปฏิเสธ","advDecide('"+a.id+"',false)","del");
+    else if(a.status==="approved")
+      act = lnk("โอนแล้ว (แนบสลิป)","openAdvPay('"+a.id+"')");
+    else if(a.status==="paid" && a.slip_data)
+      act = lnk("ดูสลิป", "viewAdvSlip('" + a.id + "')");
+    return [
+      thDate(a.status==="paid" ? paidDate(a) : String(a.requested_at||"").slice(0,10)),
+      esc(staffName(a.staffId)) + (a.reason ? '<div class="sub">' + esc(a.reason) + '</div>' : ""),
+      "<b>" + baht(a.amount) + "</b>",
+      advChip(a.status),
+      act
+    ];
+  });
+  return h + tbl([{t:"วันที่"},{t:"พนักงาน"},{t:"ยอด",c:"num"},{t:"สถานะ"},{c:"act"}], rows);
+}
+
+/* เจ้าของคีย์แทน (พนักงานยื่นปากเปล่า) */
+function openAdvForm(){
+  const opts = db.staff.filter(s => s.status !== "inactive")
+    .map(s => '<option value="' + s.id + '">' + esc(s.name) + '</option>').join("");
+  openModal("เบิกเงิน (คีย์แทนพนักงาน)",
+    fld("พนักงาน", '<select class="inp" id="f-adv-staff">' + opts + '</select>')
+    + fld("จำนวนเงิน (บาท)", '<input class="inp" type="number" id="f-adv-amt">')
+    + fld("เหตุผล", '<input class="inp" id="f-adv-why">')
+    + mfoot("saveAdv", ""));
+}
+function saveAdv(){
+  const staffId = val("f-adv-staff"), amt = +val("f-adv-amt") || 0, why = val("f-adv-why").trim();
+  if (!staffId){ notify("เลือกพนักงานก่อน"); return; }
+  if (amt <= 0){ notify("ใส่จำนวนเงินก่อน"); return; }
+  db.advances.unshift({ id: uid(), staffId, amount: amt, reason: why,
+    status: "pending", requested_at: todayStr(), slip_data: "" });
+  save(); closeModal(); render();
+}
+
+function advDecide(id, ok){
+  const a = db.advances.find(x => x.id === id);
+  if (!a || a.status !== "pending") return;                       // กันกดซ้ำ
+  const doIt = ()=>{ a.status = ok ? "approved" : "rejected"; a.decided_at = todayStr(); save(); render(); };
+  if (!ok) appConfirm("ปฏิเสธรายการ " + baht(a.amount) + " บาท ของ " + staffName(a.staffId) + " ?", doIt, "ปฏิเสธ");
+  else doIt();
+}
+
+/* โอนแล้ว = ต้องแนบสลิป → แช่แข็ง + ลงบัญชีเงินออกผ่าน addMoney จุดเดียว */
+function openAdvPay(id){
+  const a = db.advances.find(x => x.id === id);
+  if (!a || a.status !== "approved") return;
+  openModal("ยืนยันโอน — " + staffName(a.staffId) + " " + baht(a.amount) + " บาท",
+    '<div class="note">แนบรูปสลิปเป็นหลักฐาน · กดบันทึกแล้วแก้ไม่ได้ และยอดจะลงบัญชีเงินออกทันที</div>'
+    + fld("รูปสลิปโอนเงิน", '<input class="inp" type="file" accept="image/*" id="f-adv-slip">')
+    + '<img id="f-adv-preview" style="width:100%;max-height:260px;object-fit:contain;display:none;border-radius:8px;margin-top:8px">'
+    + mfoot("saveAdvPay", id, "บันทึกว่าโอนแล้ว"));
+  document.getElementById("f-adv-slip").onchange = function(e){
+    const f = e.target.files[0]; if (!f) return;
+    advResizeSlip(f, function(dataUrl){
+      window.__advSlip = dataUrl;
+      const img = document.getElementById("f-adv-preview");
+      img.src = dataUrl; img.style.display = "block";
+    });
+  };
+  window.__advSlip = "";
+}
+function advResizeSlip(file, cb){
+  const rd = new FileReader();
+  rd.onload = function(){
+    const im = new Image();
+    im.onload = function(){
+      const sc = Math.min(1, 800 / im.width);
+      const c = document.createElement("canvas");
+      c.width = Math.round(im.width * sc); c.height = Math.round(im.height * sc);
+      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+      cb(c.toDataURL("image/jpeg", 0.72));
+    };
+    im.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+function saveAdvPay(id){
+  const a = db.advances.find(x => x.id === id);
+  if (!a || a.status !== "approved") return;                      // กันจ่ายซ้ำ
+  if (!window.__advSlip){ notify("แนบรูปสลิปก่อนครับ"); return; }
+  appConfirm("ยืนยันว่าโอน " + baht(a.amount) + " บาท ให้ " + staffName(a.staffId) + " แล้วจริง?", ()=>{
+    a.slip_data = window.__advSlip;
+    a.status = "paid";
+    a.paid_at = todayStr();
+    addMoney("ออก", a.amount, "เบิกเงิน: " + staffName(a.staffId));   // เงินจริงผ่านจุดเดียวเสมอ
+    save(); closeModal(); render();
+  }, "โอนแล้วจริง");
+}
+function viewAdvSlip(id){
+  const a = db.advances.find(x => x.id === id);
+  if (!a || !a.slip_data) return;
+  openModal("สลิปโอน — " + staffName(a.staffId) + " " + baht(a.amount) + " บาท (" + thDate(a.paid_at) + ")",
+    '<img src="' + a.slip_data + '" style="width:100%;border-radius:8px">');
+}
+registerModule({ key:"advances", ic:"💸", label:"เบิกเงิน", render: renderAdvances });
+
+/* ============================================================
+   แท็บเบิกเงิน Manual — คุณโอคีย์เองทันที (จ่ายไปแล้ว ไม่ผ่านขั้นอนุมัติ)
+   ใช้เก็บตกเดือน ส.ค. 2569 เป็นหลัก · ตั้งแต่ ก.ย. ใช้ระบบเบิกเงินปกติ (แม่นกว่า — คุณโอเคาะ)
+   ประเภท: เบิกเงิน (เงินออกจากร้านจริง → ลง db.money) · ใช้หนี้ (หักเงินเดือนชำระหนี้เก่า ไม่มีเงินออก)
+   ทั้งสองแบบถูกหักจากงวดเงินเดือนของเดือนนั้นอัตโนมัติ (calcLine นับ status paid)
+   ห้ามคีย์ก่อน ส.ค. 2569 — มิ.ย./ก.ค. ปิดงวดแล้ว
+   ============================================================ */
+const ADV_TYPES = { advance:"เบิกเงิน", debt:"ใช้หนี้" };
+let amMonth = "";
+function setAmMonth(v){ amMonth = v; render(); }
+function renderAdvManual(){
+  const p = amMonth || curMonth();
+  let h = head("เบิกเงิน Manual", "คีย์เองทันทีไม่ผ่านอนุมัติ — ไว้เก็บตก ส.ค. · ตั้งแต่ ก.ย. ใช้แท็บเบิกเงินปกติ", "");
+  const sOpts = db.staff.filter(s=>s.status!=="inactive")
+    .map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join("");
+  h += '<div class="bar"><span class="lbl">เดือน</span>'
+    + '<input class="inp" type="month" value="'+esc(p)+'" onchange="setAmMonth(this.value)"></div>';
+  h += '<div class="bar">'
+    + '<input class="inp" type="date" id="am-date" value="'+esc((p>="2026-08"?p:curMonth())+"-01")+'" style="width:auto">'
+    + '<select class="inp" id="am-staff">'+sOpts+'</select>'
+    + '<select class="inp" id="am-type">'+Object.keys(ADV_TYPES).map(k=>'<option value="'+k+'">'+ADV_TYPES[k]+'</option>').join("")+'</select>'
+    + '<input class="inp" type="number" id="am-amt" placeholder="บาท" style="width:110px">'
+    + '<input class="inp" id="am-note" placeholder="หมายเหตุ (ไม่ใส่ก็ได้)" style="width:180px">'
+    + '<button class="btn" onclick="addAdvManual()">+ บันทึก</button></div>';
+
+  const list = (db.advances||[]).filter(a=>a.source==="manual"
+    && monthOf(a.paid_at || a.requested_at)===p);
+  const sumAdv  = list.filter(a=>a.type!=="debt").reduce((t,a)=>t+(+a.amount||0),0);
+  const sumDebt = list.filter(a=>a.type==="debt").reduce((t,a)=>t+(+a.amount||0),0);
+  h += '<div class="kpis">'
+    + '<div class="kpi"><span class="lbl">เบิกเงินเดือน '+beMonth(p)+'</span><b>'+baht(sumAdv)+'</b></div>'
+    + '<div class="kpi"><span class="lbl">ใช้หนี้เดือน '+beMonth(p)+'</span><b>'+baht(sumDebt)+'</b></div>'
+    + '<div class="kpi"><span class="lbl">รวมหักจากเงินเดือนงวดนี้</span><b>'+baht(sumAdv+sumDebt)+'</b></div></div>';
+
+  if(!list.length) return h + empty("เดือนนี้ยังไม่มีรายการ Manual — คีย์จากแถบด้านบน (รายการจากระบบเบิกเงินปกติดูที่แท็บเบิกเงิน)");
+
+  /* สรุปรายคน */
+  const by = {};
+  list.forEach(a=>{
+    by[a.staffId] = by[a.staffId] || { adv:0, debt:0 };
+    by[a.staffId][a.type==="debt"?"debt":"adv"] += (+a.amount||0);
+  });
+  h += '<div class="sub">สรุปรายคน (หักจากงวดเงินเดือน '+beMonth(p)+' อัตโนมัติ)</div>';
+  h += tbl([{t:"พนักงาน"},{t:"เบิกเงิน",c:"num"},{t:"ใช้หนี้",c:"num"},{t:"รวมหัก",c:"num"}],
+    Object.keys(by).sort((a,b)=>(by[b].adv+by[b].debt)-(by[a].adv+by[a].debt)).map(k=>[
+      esc(staffName(k)), baht(by[k].adv), baht(by[k].debt), "<b>"+baht(by[k].adv+by[k].debt)+"</b>"
+    ]));
+  h += '<div class="sub">รายการทั้งหมด</div>';
+  h += tbl([{t:"วันที่"},{t:"พนักงาน"},{t:"ประเภท"},{t:"ยอด",c:"num"},{t:"หมายเหตุ"},{c:"act"}],
+    list.slice().sort((a,b)=>String(b.paid_at||"").localeCompare(String(a.paid_at||""))).map(a=>[
+      thDate(a.paid_at),
+      esc(staffName(a.staffId)),
+      a.type==="debt" ? chip("ใช้หนี้","c-ใหม่") : chip("เบิกเงิน","c-เสร็จ"),
+      "<b>"+baht(a.amount)+"</b>",
+      esc(a.reason||"—"),
+      lnk("ลบ","delAdvManual('"+a.id+"')","del")
+    ]));
+  return h;
+}
+function addAdvManual(){
+  const date = val("am-date"), staffId = val("am-staff"), type = val("am-type");
+  const amt = +val("am-amt")||0, note = val("am-note").trim();
+  if(!date){ notify("เลือกวันที่ก่อนครับ"); return; }
+  if(monthOf(date) < "2026-08"){ notify("Manual เริ่มใช้ตั้งแต่ ส.ค. 2569 — มิ.ย./ก.ค. ปิดงวดไปแล้ว ห้ามแตะ"); return; }
+  if(!staffId){ notify("เลือกพนักงานก่อนครับ"); return; }
+  if(amt<=0){ notify("ใส่จำนวนเงินก่อนครับ"); return; }
+  const rec = { id:uid(), staffId, amount:amt, reason:note, type,
+    status:"paid", requested_at:date, paid_at:date, slip_data:"", source:"manual" };
+  if(type!=="debt"){   // เบิกเงิน = เงินออกจากร้านจริง — ผ่าน addMoney จุดเดียวเสมอ
+    addMoney("ออก", amt, "เบิกเงิน (Manual): " + staffName(staffId), date);
+    rec.moneyId = db.money[0].id;   // ผูกไว้ ลบรายการแล้วเงินสดถอยตาม
+  }
+  db.advances.unshift(rec);
+  save();
+  amMonth = monthOf(date);
+  render();
+  notify("บันทึก" + ADV_TYPES[type] + " " + baht(amt) + " บาท ของ " + staffName(staffId) + " แล้ว — หักงวด " + beMonth(monthOf(date)));
+}
+function delAdvManual(id){
+  const a = (db.advances||[]).find(x=>x.id===id && x.source==="manual"); if(!a) return;
+  appConfirm("ลบรายการ" + (ADV_TYPES[a.type]||"เบิกเงิน") + " " + baht(a.amount) + " บาท ของ " + staffName(a.staffId)
+    + (a.moneyId ? "\n(รายการเงินสดออกที่ผูกกันจะถูกลบด้วย)" : "") + " ?", ()=>{
+    db.advances = db.advances.filter(x=>x.id!==id);
+    if(a.moneyId) db.money = db.money.filter(m=>m.id!==a.moneyId);
+    save(); render();
+  }, "ลบ");
+}
+registerModule({ key:"advmanual", ic:"🧾", label:"เบิกเงิน Manual", render: renderAdvManual });
+
+/* ============================================================
+   แท็บเงินสด — รายรับ-รายจ่ายจริง ทุกจุดผ่าน addMoney จุดเดียว
+   ============================================================ */
+function renderMoney(){
+  let h = head("เงินสด", "รายรับ-รายจ่ายจริงที่เข้า-ออกกระเป๋า", "openMoneyForm");
+  h += '<div class="bar"><button class="btn ghost" onclick="openExportForm()">ออกแฟ้มส่งสำนักงานบัญชี</button></div>';
+  if(!db.money.length) return h + empty("ยังไม่มีรายการเงินสด กดปุ่ม + เพิ่ม เพื่อบันทึกรายการแรก");
+  const cols = [{t:"วันที่"},{t:"ทิศทาง"},{t:"ยอด",c:"num"},{t:"รายละเอียด"},{c:"act"}];
+  const rows = db.money.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(m=>[
+    thDate(m.date),
+    chip(m.dir, m.dir==="เข้า" ? "c-เสร็จ" : "c-ใหม่"),
+    baht(m.amount),
+    esc(m.note||"—"),
+    lnk("ลบ","delRow('money','"+m.id+"')","del")
+  ]);
+  return h + tbl(cols, rows);
+}
+function openMoneyForm(){
+  openModal("บันทึกเงินสด",
+    fld("ทิศทาง", '<select class="inp" id="f-dir"><option>เข้า</option><option>ออก</option></select>')
+    + fld("ยอดเงิน", '<input class="inp" type="number" id="f-amount">')
+    + fld("รายละเอียด", '<input class="inp" id="f-note">')
+    + fld("วันที่", '<input class="inp" type="date" id="f-date" value="'+todayStr()+'">')
+    + mfoot("saveMoney", ""));
+}
+function saveMoney(){
+  const amount = +val("f-amount")||0;
+  if(!amount){ notify("กรุณาใส่ยอดเงิน"); return; }
+  addMoney(val("f-dir"), amount, val("f-note").trim(), val("f-date"));   // ผ่านจุดเดียวเสมอ
+  closeModal(); render();
+}
+
+/* แฟ้มส่งสำนักงานบัญชี (CSV + BOM ไทยไม่เพี้ยนใน Excel)
+   ⚠️ เตรียมข้อมูลให้นักบัญชีเท่านั้น ไม่ใช่งบที่พร้อมยื่นภาษี */
+function openExportForm(){
+  openModal("ออกแฟ้มส่งสำนักงานบัญชี",
+    '<div class="note">แฟ้มนี้คือข้อมูลดิบสำหรับส่งนักบัญชี ไม่ใช่งบการเงินที่พร้อมยื่นภาษี</div>'
+    + fld("เดือน", '<input class="inp" type="month" id="f-period" value="'+curMonth()+'">')
+    + mfoot("exportAccounting", "", "ดาวน์โหลด CSV"));
+}
+function exportAccounting(){
+  const p = val("f-period");
+  if(!p){ notify("กรุณาเลือกเดือน"); return; }
+  const tag = "แฟ้มบัญชี-" + beMonth(p) + "-";
+
+  csvDownload(tag + "รายรับรายจ่าย.csv",
+    [["วันที่","ทิศทาง","ยอด","รายละเอียด"]].concat(
+      db.money.filter(m=>monthOf(m.date)===p).map(m=>[m.date, m.dir, m.amount, m.note||""])));
+
+  csvDownload(tag + "งานรถ.csv",
+    [["วันที่","ทะเบียน","รถ","ลูกค้า","โปรแกรม","Set","ยอด"]].concat(
+      db.jobs.filter(j=>monthOf(j.date)===p).map(j=>[j.date, j.plate||"", j.carModel||"", j.customer||"", j.program||"", j.filmSet||"", j.amount])));
+
+  const closed = db.payrolls.find(x=>x.period===p && x.closed);
+  if(closed)
+    csvDownload(tag + "เงินเดือน.csv",
+      [["ชื่อ","ฐาน","ค่าบ้าน","ค่าคอม","OT ธรรมดา","OT วันหยุด","หัก ปกส.","หักเบิก","สุทธิ"]].concat(
+        closed.lines.map(l=>[l.name, l.base, l.house||0, (l.comm||0).toFixed(2),
+          (l.otNPay||0).toFixed(2), (l.otHPay||0).toFixed(2), l.sso, l.advance||0, l.net.toFixed(2)])));
+
+  closeModal();
+}
+registerModule({ key:"money", ic:"💰", label:"เงินสด", render: renderMoney });
+
+/* ============================================================
+   แท็บตั้งค่า — อัตราค่าคอม/หัก อยู่ใน db.settings แก้ได้ที่นี่ที่เดียว
+   งวดที่ปิดแล้วแช่แข็งอัตราของตัวเองไว้ ไม่กระทบ
+   ============================================================ */
+function renderSettings(){
+  const s = db.settings, r = s.rates;
+  const numFld = (label, id, v, step) =>
+    fld(label, '<input class="inp" type="number" step="'+(step||"1")+'" id="'+id+'" value="'+v+'">');
+  let h = head("ตั้งค่า", "อัตราค่าคอม + อัตราหัก — งวดเงินเดือนที่ปิดแล้วไม่กระทบ", "");
+  h += '<div class="card" style="padding:16px">'
+    + '<div class="sub" style="margin-bottom:10px"><b>สาขา</b></div>'
+    + fld("ชื่อสาขา", '<input class="inp" id="s-branch" value="'+esc(s.branch)+'">')
+    + '<div class="sub" style="margin:14px 0 10px"><b>กองกลางต่อคัน (บาท) — แบ่งช่าง/ผู้ช่วยแล้วหารต่อหัว</b></div>'
+    + numFld("Ceramic+", "s-p-ceramic", r.pool["Ceramic+"])
+    + numFld("Graphene", "s-p-graphene", r.pool["Graphene"])
+    + numFld("SuperResin", "s-p-resin", r.pool["SuperResin"])
+    + numFld("ฟิล์มเต็มคัน (เข้ากองกลาง)", "s-p-film", r.pool["ฟิล์มเต็มคัน"])
+    + '<div class="sub" style="margin:14px 0 10px"><b>คอมพิเศษช่างต่อคัน (บาท) — Set A/B/C ไม่เข้ากองกลาง</b></div>'
+    + numFld("ฟิล์มเต็มคัน (คอมพิเศษช่าง)", "s-s-film", r.special["ฟิล์มเต็มคัน"])
+    + numFld("Set A", "s-s-a", r.special["SetA"])
+    + numFld("Set B", "s-s-b", r.special["SetB"])
+    + numFld("Set C", "s-s-c", r.special["SetC"])
+    + numFld("ผิวส้ม (อัตโนมัติทุกคัน Graphene/SuperResin)", "s-s-orange", r.special["ผิวส้ม"])
+    + '<div class="sub" style="margin:14px 0 10px"><b>สัดส่วนแบ่งกองกลาง + % พิเศษ</b> — ค่านี้มีผลตั้งแต่ ส.ค. 2569 เป็นต้นไป (มิ.ย.–ก.ค. ระบบใช้ 40/60 เดิมอัตโนมัติ ไม่กระทบงวดที่จ่ายแล้ว)</div>'
+    + numFld("ส่วนช่าง (0.3 = 30%)", "s-tech", (r.shareChanges&&r.shareChanges.length?r.shareChanges[r.shareChanges.length-1].techShare:r.techShare), "0.05")
+    + numFld("ส่วนผู้ช่วย (0.7 = 70%)", "s-asst", (r.shareChanges&&r.shareChanges.length?r.shareChanges[r.shareChanges.length-1].asstShare:r.asstShare), "0.05")
+    + numFld("% ยอดขายทั้งวัน ของผู้ช่วยพิเศษ (0.01 = 1%)", "s-pct", r.percentRate, "0.001")
+    + '<div class="sub" style="margin:14px 0 10px"><b>อัตราหัก/OT (ตรวจอัตราจริงทุกปี)</b></div>'
+    + numFld("ประกันสังคม (0.05 = 5%)", "s-sso", s.ssoRate, "0.01")
+    + numFld("เพดานประกันสังคม (บาท)", "s-ssocap", s.ssoCap)
+    + numFld("ตัวคูณ OT ธรรมดา", "s-ot", s.otMult, "0.1")
+    + numFld("ตัวคูณ OT วันหยุด", "s-oth", s.otHolidayMult, "0.1")
+    + '<button class="btn" onclick="saveSettings()">บันทึกตั้งค่า</button>'
+    + '</div>'
+    + '<div class="card" style="padding:16px">'
+    + '<div class="sub" style="margin-bottom:10px"><b>สำรอง/กู้คืนข้อมูล</b> — ข้อมูลอยู่ในเบราว์เซอร์เครื่องนี้เครื่องเดียว ควรสำรองเป็นประจำ (อย่างน้อยทุกสิ้นเดือน)</div>'
+    + '<div class="bar"><button class="btn" onclick="backupDb()">⬇ สำรองข้อมูล (.json)</button>'
+    + '<button class="btn ghost" onclick="openRestore()">⬆ กู้คืนจากไฟล์</button></div>'
+    + '<div class="sub">ไฟล์สำรองใช้ย้ายเครื่อง และเป็นสะพานขึ้น Supabase ตอน up ด้วย</div>'
+    + '</div>'
+    + '<div class="card" style="padding:16px">'
+    + '<div class="sub" style="margin-bottom:10px"><b>Cloud (Supabase)</b> — ทุกเครื่องที่ล็อกอินเห็นข้อมูลก้อนเดียวกัน</div>'
+    + '<div class="bar">'
+    + (sbSession
+        ? '<span class="chip c-เสร็จ">ล็อกอินแล้ว: '+esc(sbSession.email||"")+'</span>'
+          + '<button class="btn" onclick="cloudPull(true)">🔄 ซิงค์เดี๋ยวนี้</button>'
+          + '<button class="btn ghost" onclick="cloudPushAll()">⬆ อัปโหลดทั้งหมดขึ้น cloud</button>'
+          + '<button class="btn ghost" onclick="cloudLogout()">ออกจากระบบ</button>'
+        : (cloudOn ? '<button class="btn" onclick="openCloudLogin()">เข้าสู่ระบบ Cloud</button><span class="sub">ยังไม่ล็อกอิน — ข้อมูลอยู่เครื่องนี้เครื่องเดียว</span>'
+                   : '<span class="sub">ยังไม่ตั้งค่า Supabase</span>'))
+    + '</div>'
+    + (cloudStatus==="err" ? '<div class="sub" style="color:var(--danger)">ล่าสุด: '+esc(cloudMsg)+'</div>' : '')
+    + '</div>'
+    + '<div class="card" style="padding:16px">'
+    + '<div class="sub" style="margin-bottom:10px"><b>ย้ายข้อมูลแบบก๊อปข้อความ</b> — ใช้ย้ายจากหน้าเดิม (ลิงก์ artifact) มาหน้าใหม่ ที่ปุ่มดาวน์โหลดใช้ไม่ได้</div>'
+    + '<div class="bar"><button class="btn ghost" onclick="openTextExport()">📋 ส่งออกเป็นข้อความ</button>'
+    + '<button class="btn ghost" onclick="openTextImport()">📥 วางข้อความกู้คืน</button></div>'
+    + '</div>';
+  return h;
+}
+/* สะพานย้ายข้อมูลด้วยการก๊อปข้อความ (หน้า artifact ดาวน์โหลดไฟล์ไม่ได้ แต่ก๊อปข้อความได้) */
+function openTextExport(){
+  const body = JSON.stringify(db);
+  openModal("ส่งออกข้อมูลเป็นข้อความ",
+    '<div class="note">กดในกล่อง → เลือกทั้งหมดให้เอง → ก๊อป (Cmd/Ctrl+C) → ไปหน้าใหม่กด "วางข้อความกู้คืน"</div>'
+    + '<textarea class="inp" id="tx-out" style="height:180px;font-size:11px" readonly onclick="this.select()">'+esc(body)+'</textarea>'
+    + '<div class="bar" style="margin-top:8px"><button class="btn" onclick="copyTextExport()">ก๊อปทั้งก้อน</button>'
+    + '<span class="sub">'+Math.round(body.length/1024)+' KB · พนักงาน '+db.staff.length+' · งานรถ '+db.jobs.length+' · เช็คชื่อ '+db.attendance.length+'</span></div>');
+}
+function copyTextExport(){
+  const el = document.getElementById("tx-out");
+  el.select(); el.setSelectionRange(0, 99999999);
+  try{ document.execCommand("copy"); notify("ก๊อปแล้ว — เอาไปวางในหน้าใหม่ได้เลย"); }
+  catch(e){ notify("ก๊อปอัตโนมัติไม่ได้ — กด Cmd+C เองหลังเลือกข้อความ"); }
+}
+function openTextImport(){
+  openModal("วางข้อความกู้คืนข้อมูล",
+    '<div class="note">⚠️ วางแล้วกดกู้คืน ข้อมูลปัจจุบันในเครื่องนี้จะถูกทับทั้งหมด</div>'
+    + '<textarea class="inp" id="tx-in" style="height:180px;font-size:11px" placeholder="วางข้อความที่ก๊อปมาที่นี่"></textarea>'
+    + mfoot("runTextImport", "", "กู้คืนจากข้อความ"));
+}
+function runTextImport(){
+  let d;
+  try{ d = JSON.parse(document.getElementById("tx-in").value.trim()); }
+  catch(e){ notify("ข้อความไม่ใช่ข้อมูลสำรองของระบบนี้ (วางไม่ครบ?)"); return; }
+  if(!d || !Array.isArray(d.staff) || !Array.isArray(d.jobs) || !d.settings){ notify("โครงข้อมูลไม่ถูกต้อง"); return; }
+  appConfirm("กู้คืน: พนักงาน "+d.staff.length+" คน · งานรถ "+d.jobs.length+" คัน · เช็คชื่อ "+(d.attendance||[]).length+" รายการ\nทับข้อมูลเครื่องนี้ทั้งหมด?", ()=>{
+    db = Object.assign(JSON.parse(JSON.stringify(DB_DEF)), d);
+    save(); closeModal(); render();
+    notify("กู้คืนเรียบร้อย" + (sbSession ? " — กำลังซิงค์ขึ้น cloud" : ""));
+  }, "กู้คืนทับ");
+}
+function backupDb(){
+  const body = JSON.stringify(db);
+  const blob = new Blob([body], { type:"application/json" });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "albatros-erp-backup-" + todayStr() + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+function openRestore(){
+  openModal("กู้คืนข้อมูลจากไฟล์สำรอง",
+    '<div class="note">⚠️ กู้คืนแล้ว ข้อมูลปัจจุบันในเครื่องนี้จะถูก<b>ทับทั้งหมด</b> — สำรองของปัจจุบันก่อนถ้าไม่แน่ใจ</div>'
+    + fld("ไฟล์สำรอง (.json)", '<input class="inp" type="file" accept=".json,application/json" id="f-restore">')
+    + mfoot("runRestore", "", "กู้คืน"));
+}
+function runRestore(){
+  const el = document.getElementById("f-restore");
+  if(!el.files.length){ notify("เลือกไฟล์สำรองก่อนครับ"); return; }
+  const rd = new FileReader();
+  rd.onload = function(){
+    let d;
+    try { d = JSON.parse(String(rd.result)); }
+    catch(e){ notify("อ่านไฟล์ไม่ได้ — ไม่ใช่ไฟล์สำรองของระบบนี้"); return; }
+    if(!d || !Array.isArray(d.staff) || !Array.isArray(d.jobs) || !d.settings){
+      notify("โครงไฟล์ไม่ใช่ข้อมูลสำรองของ Albatros ERP"); return;
+    }
+    appConfirm("กู้คืนข้อมูล: พนักงาน "+d.staff.length+" คน · งานรถ "+d.jobs.length+" คัน · เช็คชื่อ "+(d.attendance||[]).length+" รายการ\nทับข้อมูลปัจจุบันทั้งหมด ยืนยันไหม?", ()=>{
+      db = Object.assign(JSON.parse(JSON.stringify(DB_DEF)), d);
+      save(); closeModal(); render();
+      notify("กู้คืนเรียบร้อยครับ");
+    }, "กู้คืนทับ");
+  };
+  rd.readAsText(el.files[0], "utf-8");
+}
+function saveSettings(){
+  const s = db.settings, r = s.rates;
+  s.branch = val("s-branch").trim() || s.branch;
+  r.pool["Ceramic+"] = +val("s-p-ceramic")||0;
+  r.pool["Graphene"] = +val("s-p-graphene")||0;
+  r.pool["SuperResin"] = +val("s-p-resin")||0;
+  r.pool["ฟิล์มเต็มคัน"] = +val("s-p-film")||0;
+  r.special["ฟิล์มเต็มคัน"] = +val("s-s-film")||0;
+  r.special["SetA"] = +val("s-s-a")||0;
+  r.special["SetB"] = +val("s-s-b")||0;
+  r.special["SetC"] = +val("s-s-c")||0;
+  r.special["ผิวส้ม"] = +val("s-s-orange")||0;
+  // สัดส่วนที่แก้ = ของงวดปัจจุบัน (shareChanges ตัวล่าสุด) — ฐาน 40/60 ของเดือนเก่าห้ามแตะ
+  if(!r.shareChanges || !r.shareChanges.length) r.shareChanges = [{ from:"2026-08", techShare:0.30, asstShare:0.70 }];
+  const last = r.shareChanges[r.shareChanges.length-1];
+  last.techShare = +val("s-tech")||0;
+  last.asstShare = +val("s-asst")||0;
+  r.percentRate = +val("s-pct")||0;
+  s.ssoRate = +val("s-sso")||0;
+  s.ssoCap = +val("s-ssocap")||0;
+  s.otMult = +val("s-ot")||0;
+  s.otHolidayMult = +val("s-oth")||0;
+  save(); render();
+  notify("บันทึกตั้งค่าแล้ว — งวดที่ปิดแล้วไม่กระทบ");
+}
+registerModule({ key:"settings", ic:"⚙️", label:"ตั้งค่า", render: renderSettings });
+
+/* ============================================================
+   แดชบอร์ด — KPI คำนวณสดทุกครั้ง
+   ============================================================ */
+function renderDash(){
+  const p = curMonth();
+  const dates = monthDates(p);
+  const days = dates.map(dayCommission);
+  const sales = days.reduce((t,d)=>t+d.sales,0);
+  const active = db.staff.filter(st=>st.status!=="inactive");
+  const commTotal = active.reduce((t,st)=> t + days.reduce((x,dc)=>x+staffDayComm(st,dc),0), 0);
+  const advPaid = db.advances.filter(a=>a.status==="paid" && monthOf(a.paid_at||a.requested_at)===p)
+    .reduce((t,a)=>t+(+a.amount||0),0);
+  const cashIn  = db.money.filter(m=>m.dir==="เข้า" && monthOf(m.date)===p).reduce((t,m)=>t+(+m.amount||0),0);
+  const cashOut = db.money.filter(m=>m.dir==="ออก" && monthOf(m.date)===p).reduce((t,m)=>t+(+m.amount||0),0);
+  const todayPresent = Object.keys(presentIds(todayStr())).length;
+  return head("แดชบอร์ด", "Albatros สาขา" + db.settings.branch + " · ภาพรวมเดือน " + beMonth(p), "")
+    + '<div class="kpis">'
+    + '<div class="kpi"><span class="lbl">ยอดขายเดือนนี้ (งานรถ)</span><b>'+baht(sales)+'</b></div>'
+    + '<div class="kpi"><span class="lbl">ค่าคอมสะสมเดือนนี้</span><b>'+baht(commTotal)+'</b></div>'
+    + '<div class="kpi"><span class="lbl">เบิกโอนแล้วเดือนนี้</span><b>'+baht(advPaid)+'</b></div>'
+    + '<div class="kpi"><span class="lbl">มาทำงานวันนี้</span><b>'+todayPresent+' คน</b></div></div>'
+    + '<div class="big">เงินสดเดือนนี้ เข้า '+boldAmt(cashIn)+' ออก '+boldAmt(cashOut)
+    + ' — เปลี่ยนสุทธิ '+boldAmt(cashIn-cashOut)+'</div>';
+}
+registerModule({ key:"dash", ic:"📊", label:"แดชบอร์ด", render: renderDash });
+
+render();
+cloudBoot();   // มี session → ดึง cloud · ไม่มี → เด้งหน้าล็อกอิน (ปิดได้ = ออฟไลน์) · หน้า artifact (เน็ตถูกบล็อก) → ออฟไลน์เงียบๆ
+</script>
+</body>
+</html>
