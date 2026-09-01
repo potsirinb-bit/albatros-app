@@ -125,7 +125,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b16";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b17";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
 /* ── Supabase (เปิดใช้ 1 ก.ย. 2569) ──
@@ -1316,8 +1316,24 @@ async function saveVerifyJobs(p){
 function setJobBranch(id, b){
   const j = db.jobs.find(x=>x.id===id); if(!j) return;
   j.branch = b;
+  j.branchManual = true;   // มือคุณโอเปลี่ยนเอง = ล็อกไว้ การนำเข้าไฟล์ห้ามลบ/ทับคันนี้อีก
   save(); render();
-  notify("เปลี่ยนสาขา "+(j.plate||"คันนี้")+" เป็น "+b+" แล้ว");
+  notify("เปลี่ยนสาขา "+(j.plate||"คันนี้")+" เป็น "+b+" แล้ว (ล็อกไว้ นำเข้าไฟล์จะไม่ทับคันนี้)");
+}
+
+/* จุดบันทึกเวอร์ชันงานรถ — กดเก็บ "ตัวจริง" ไว้ กดย้อนกลับได้ทุกเมื่อ (คุณโอขอ หลังงานบุรีรัมย์หาย) */
+function saveJobsVersion(){
+  db.jobsBackup = { at: todayStr()+" "+nowHM(), jobs: JSON.parse(JSON.stringify(db.jobs)) };
+  save(); render();
+  notify("💾 บันทึกเวอร์ชันงานรถแล้ว ("+db.jobs.length+" ใบ เวลา "+nowHM()+") — กดย้อนกลับมาที่จุดนี้ได้เสมอ");
+}
+function restoreJobsVersion(){
+  if(!db.jobsBackup || !db.jobsBackup.jobs){ notify("ยังไม่เคยบันทึกเวอร์ชันไว้"); return; }
+  appConfirm("ย้อนงานรถกลับไปเวอร์ชันที่บันทึกไว้เมื่อ "+db.jobsBackup.at+" ("+db.jobsBackup.jobs.length+" ใบ)?\nงานรถปัจจุบันจะถูกแทนที่ทั้งหมด", ()=>{
+    db.jobs = JSON.parse(JSON.stringify(db.jobsBackup.jobs));
+    save(); render();
+    notify("↩ ย้อนกลับเวอร์ชัน "+db.jobsBackup.at+" เรียบร้อย");
+  }, "ย้อนกลับ");
 }
 
 function renderJobs(){
@@ -1326,7 +1342,9 @@ function renderJobs(){
   h += '<div class="bar"><span class="lbl">เดือน</span>'
     + '<input class="inp" type="month" value="'+esc(p)+'" onchange="setJobsMonth(this.value)">'
     + '<button class="btn ghost" onclick="openDb3Import()">นำเข้า Database3 (CSV)</button>'
-    + '<button class="btn" onclick="saveVerifyJobs(\''+p+'\')">💾 บันทึก + ตรวจกับ cloud</button>'
+    + '<button class="btn" onclick="saveJobsVersion()">💾 บันทึกเวอร์ชันนี้</button>'
+    + (db.jobsBackup ? '<button class="btn ghost" onclick="restoreJobsVersion()">↩ ย้อนกลับ ('+esc(db.jobsBackup.at)+')</button>' : '')
+    + '<button class="btn ghost" onclick="saveVerifyJobs(\''+p+'\')">☁️ ตรวจกับ cloud</button>'
     + '<span class="sub">'+esc(syncStatusText())+'</span></div>';
   const list = db.jobs.filter(j=>monthOf(j.date)===p);
   const sales = list.reduce((t,j)=>t+(+j.amount||0),0);
@@ -1529,8 +1547,14 @@ function runDb3Import(){
     if(!jobs.length){ notify("ไม่พบแถวตั้งแต่เดือน "+from+" ในไฟล์"); return; }
     const months = {};
     jobs.forEach(j=>{ months[monthOf(j.date)] = (months[monthOf(j.date)]||0)+1; });
-    // แทนที่เฉพาะ "เดือน+สาขาเดียวกัน" — นำเข้าไฟล์โคราชกับบุรีรัมย์เดือนเดียวกันได้ ไม่ทับกัน
-    const sameBranch = j => (j.branch||"โคราช") === impBranch;
+    // แทนที่เฉพาะ "เดือน+สาขาเดียวกัน" — และ**ไม่แตะคันที่คุณโอเปลี่ยนสาขาเอง (branchManual)** เด็ดขาด
+    const sameBranch = j => (j.branch||"โคราช") === impBranch && !j.branchManual;
+    // คันในไฟล์ที่ตรงกับคันที่ล็อกไว้ (วัน+ทะเบียน+ยอด) → ข้าม ไม่เพิ่มซ้ำ
+    const lockedKey = {};
+    db.jobs.forEach(j=>{ if(j.branchManual) lockedKey[j.date+"|"+j.plate+"|"+j.amount] = 1; });
+    const skipLocked = jobs.filter(j=>lockedKey[j.date+"|"+j.plate+"|"+j.amount]).length;
+    for(let i=jobs.length-1;i>=0;i--) if(lockedKey[jobs[i].date+"|"+jobs[i].plate+"|"+jobs[i].amount]) jobs.splice(i,1);
+    Object.keys(months).forEach(m=>{ months[m] = jobs.filter(j=>monthOf(j.date)===m).length; });
     const replaced = db.jobs.filter(j=>j.source==="db3" && months[monthOf(j.date)] && sameBranch(j)).length;
     appConfirm("นำเข้า "+jobs.length+" คัน สาขา"+impBranch+" ("+Object.keys(months).sort().map(m=>beMonth(m)+" "+months[m]+" คัน").join(" · ")+")"
         + (replaced ? "\nแทนที่ของเดิมสาขานี้ที่เคยนำเข้า "+replaced+" คัน" : "") + "\nยืนยันไหม?", ()=>{
