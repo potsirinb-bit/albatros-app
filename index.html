@@ -125,7 +125,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b18";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b19";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
 /* ── Supabase (เปิดใช้ 1 ก.ย. 2569) ──
@@ -627,7 +627,8 @@ function renderStaff(){
     const r = [esc(s.name), esc(s.role||s.position||"—"), esc(COMM_ROLES[s.commissionRole]||"—"), esc(s.branch||"—")];
     if(owner) r.push(peekCell("salary", s.id, baht(s.salary)), baht(s.houseAllow||0), peekCell("acct", s.id, acctStr(s)));
     r.push(
-      s.status==="inactive" ? chip("พ้นสภาพ","c-ปิด") : chip("ทำงานอยู่","c-เสร็จ"),
+      (s.status==="inactive" ? chip("พ้นสภาพ","c-ปิด") : chip("ทำงานอยู่","c-เสร็จ"))
+        + (s.noSso ? " " + chip("ไม่หัก ปกส.","c-ใหม่") : ""),
       lnk(s.status==="inactive" ? "เปิดใช้งาน" : "ปิดการใช้งาน", "toggleStaffActive('"+s.id+"')")
       + lnk("แก้","openStaffForm('"+s.id+"')")
       + (owner ? lnk("ลบถาวร","delStaff('"+s.id+"')","del") : "")
@@ -660,7 +661,9 @@ function openStaffForm(id){
       + fld("ที่อยู่", '<input class="inp" id="f-address" value="'+esc(r?r.address:"")+'">')
       + fld("ธนาคาร", '<input class="inp" id="f-bank" placeholder="เช่น กสิกรไทย" value="'+esc(r?r.bankName:"")+'">')
       + fld("เลขบัญชี (ไว้โอนเงินเดือน/เบิก)", '<input class="inp" id="f-bankno" inputmode="numeric" value="'+esc(r?r.bankNo:"")+'">')
-      + fld("ชื่อบัญชี", '<input class="inp" id="f-acctname" placeholder="ชื่อ-นามสกุลเจ้าของบัญชี" value="'+esc(r?r.acctName:"")+'">');
+      + fld("ชื่อบัญชี", '<input class="inp" id="f-acctname" placeholder="ชื่อ-นามสกุลเจ้าของบัญชี" value="'+esc(r?r.acctName:"")+'">')
+      + fld("ประกันสังคม", '<label class="lbl" style="display:flex;align-items:center;gap:8px;margin:0">'
+        + '<input type="checkbox" id="f-nosso"'+(r&&r.noSso?" checked":"")+'> ไม่หักประกันสังคม (ยังไม่ขึ้นทะเบียน/ไม่มีสิทธิ์)</label>');
   }
   openModal(r ? "แก้พนักงาน" : "เพิ่มพนักงาน", body + mfoot("saveStaff", id));
 }
@@ -677,6 +680,7 @@ function saveStaff(id){
   if(document.getElementById("f-bank"))    f.bankName   = val("f-bank").trim();
   if(document.getElementById("f-bankno"))  f.bankNo     = val("f-bankno").trim();
   if(document.getElementById("f-acctname")) f.acctName  = val("f-acctname").trim();
+  if(document.getElementById("f-nosso"))   f.noSso      = document.getElementById("f-nosso").checked;
   if(id){ const r = db.staff.find(x=>x.id===id); if(r) Object.assign(r, f); }
   else { db.staff.unshift(Object.assign({ id:uid(), status:"active", salary:0, houseAllow:0, nationalId:"", address:"" }, f)); }
   save(); closeModal(); render();
@@ -1739,7 +1743,7 @@ function calcLine(staff, period){
   const otNPay = hourRate * S.otMult * otN;
   const otHPay = hourRate * S.otHolidayMult * otH;
   const comm = monthCommission(staff.id, period);
-  const sso = Math.min(base * S.ssoRate, S.ssoCap);
+  const sso = staff.noSso ? 0 : Math.min(base * S.ssoRate, S.ssoCap);   // คนยังไม่ขึ้นทะเบียน ปกส. — ติ๊กในฟอร์มพนักงาน
   const tax = 0;   // ตัวอย่าง: ยังไม่คิดภาษีในเดโม่ (จริงต้องคิดตามฐานภาษีปีปัจจุบัน)
   // หักเบิกล่วงหน้าอัตโนมัติ — นับเฉพาะที่ "โอนแล้ว" ในเดือนนั้น (เงินออกไปจริง)
   const advance = (db.advances||[])
