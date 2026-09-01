@@ -125,7 +125,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b17";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b18";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
 /* ── Supabase (เปิดใช้ 1 ก.ย. 2569) ──
@@ -322,6 +322,7 @@ function cloudSchedulePush(){
   __pushTimer = setTimeout(cloudPushDiff, 800);
 }
 async function cloudPushDiff(){
+  __pushTimer = null;   // ตัวจับเวลา debounce ทำงานแล้ว — ล้างไว้ให้เช็คสถานะ "มีของค้างส่ง" ได้ถูก
   if(!cloudOn || !sbSession || !__snap) return;
   if(__pushing){ __pushAgain = true; return; }
   __pushing = true;
@@ -461,9 +462,7 @@ function seedDb(){
   });
   return d;
 }
-/*SEED_HISTORY_START*/
-const SEED_HISTORY = { jobs: [], att: {} };   // build สาธารณะ: ข้อมูลจริงอยู่ใน cloud
-/*SEED_HISTORY_END*/
+/*SEED_HISTORY_START*/const SEED_JOBS=[];const SEED_ATT=[];/*SEED_HISTORY_END*/
 
 /* ===== helper ===== */
 function uid(){ return Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4); }
@@ -613,7 +612,9 @@ function renderStaff(){
     +   '<option value="staff"'+(owner?"":" selected")+'>พนักงานทั่วไป</option>'
     + '</select>'
     + '<label class="lbl"><input type="checkbox" onchange="setHideInactive(this.checked)"'
-    +   (hideInactive?" checked":"")+'> ซ่อนคนที่ปิดใช้งาน</label></div>';
+    +   (hideInactive?" checked":"")+'> ซ่อนคนที่ปิดใช้งาน</label>'
+    + (owner ? '<button class="btn ghost" style="margin-left:auto" onclick="openLineBind()">🔗 ผูกไลน์พนักงาน</button>' : '')
+    + '</div>';
   if(!db.staff.length) return h + empty("ยังไม่มีพนักงาน กดปุ่ม + เพิ่ม เพื่อเพิ่มคนแรก");
   const list = hideInactive ? db.staff.filter(s=>s.status!=="inactive") : db.staff;
   if(!list.length) return h + empty('ไม่มีพนักงานที่ตรงกับตัวกรอง — เอาเครื่องหมายถูก "ซ่อนคนที่ปิดใช้งาน" ออกเพื่อดูทั้งหมด');
@@ -2355,6 +2356,55 @@ registerModule({ key:"dash", ic:"📊", label:"แดชบอร์ด", render
 
 render();
 cloudBoot();   // มี session → ดึง cloud · ไม่มี → เด้งหน้าล็อกอิน (ปิดได้ = ออฟไลน์) · หน้า artifact (เน็ตถูกบล็อก) → ออฟไลน์เงียบๆ
+
+/* ============================================================
+   b18 — ท่อพนักงานตรง Supabase (เฟส 1 ก.ย. 2569)
+   พนักงานยื่นเบิก/ลงเวลาจากหน้า emp.html บน github.io → เขียนเข้า Supabase ตรง
+   ฝั่ง ERP: (1) สลับกลับมาหน้าจอ = ดึง cloud อัตโนมัติ ให้รายการใหม่เด้งเข้าเอง
+            (2) โมดัลดูสถานะผูกไลน์ + รีเซ็ตกุญแจ (ตาราง emp_keys — อยู่นอก sync ปกติ)
+   ============================================================ */
+let __lastAutoPull = Date.now();
+async function autoPull(){
+  if(!cloudOn || !sbSession) return;
+  if(cloudStatus==="sync" || __pushing || __pushTimer) return;   // มีของกำลังส่งขึ้น — อย่าดึงมาทับ
+  if(Date.now() - __lastAutoPull < 60000) return;
+  __lastAutoPull = Date.now();
+  await cloudPull(false);
+}
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) autoPull(); });
+window.addEventListener("focus", ()=>{ autoPull(); });
+
+async function openLineBind(){
+  openModal("ผูกไลน์พนักงาน", '<div class="note">พนักงานพิมพ์ <b>ผูกไลน์</b> ในแชทไลน์ร้าน → พิมพ์ <b>ผูก ชื่อตัวเอง</b> → ได้ลิงก์ส่วนตัว (ลงเวลา · เบิกเงิน · สลิป)</div><div id="lb-box" class="sub">กำลังโหลด…</div>');
+  try{
+    const res = await sbReq("/rest/v1/emp_keys?select=staff_id,name,created_at&order=name");
+    if(!res.ok) throw new Error("อ่านไม่ได้ ("+res.status+")");
+    const keys = await res.json();
+    const bound = {}; keys.forEach(k=>{ bound[k.staff_id]=k; });
+    const rows = db.staff.filter(s=>s.status!=="inactive").map(s=>{
+      const b = bound[s.id];
+      return [ esc(s.name),
+        b ? chip("ผูกแล้ว","c-เสร็จ")+' <span class="sub">'+esc(String(b.created_at||"").slice(0,10))+'</span>' : chip("ยังไม่ผูก","c-ใหม่"),
+        b ? lnk("รีเซ็ต","resetLineBind('"+s.id+"','"+esc(s.name)+"')","del") : "" ];
+    });
+    const el = document.getElementById("lb-box");
+    if(el) el.outerHTML = tbl([{t:"ชื่อ"},{t:"สถานะไลน์"},{c:"act"}], rows)
+      + '<div class="sub">รีเซ็ต = ลิงก์เดิมใช้ไม่ได้ทันที พนักงานพิมพ์ ผูกไลน์ ใหม่ได้เลย (ใช้ตอนเปลี่ยนเครื่อง/ส่งลิงก์ผิดคน)</div>';
+  }catch(e){
+    const el = document.getElementById("lb-box");
+    if(el) el.textContent = "โหลดไม่ได้: " + (e.message||e) + " — ต้องล็อกอิน cloud ก่อน";
+  }
+}
+function resetLineBind(staffId, name){
+  appConfirm("รีเซ็ตกุญแจไลน์ของ "+name+" ?\nลิงก์เดิมจะใช้ไม่ได้ทันที และต้องพิมพ์ ผูกไลน์ ใหม่", async ()=>{
+    try{
+      const res = await sbReq("/rest/v1/emp_keys?staff_id=eq."+encodeURIComponent(staffId), { method:"DELETE" });
+      if(!res.ok) throw new Error("ลบไม่สำเร็จ ("+res.status+")");
+      notify("รีเซ็ตแล้ว — "+name+" พิมพ์ ผูกไลน์ ใหม่ได้เลย");
+      openLineBind();
+    }catch(e){ notify("รีเซ็ตไม่สำเร็จ: "+(e.message||e)); }
+  }, "รีเซ็ต");
+}
 </script>
 </body>
 </html>
