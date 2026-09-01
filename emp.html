@@ -183,7 +183,7 @@ function gotPhoto(inp){
   const img=new Image();
   img.onload=()=>{
     const c=document.createElement("canvas");
-    const w=480, h=Math.round(img.height*w/img.width);
+    const w=400, h=Math.round(img.height*w/img.width);   // 400px พอเห็นหน้าชัด · เก็บ 900+ ใบ/เดือน ต้องคุมขนาด
     c.width=w; c.height=h;
     const x=c.getContext("2d");
     x.drawImage(img,0,0,w,h);
@@ -192,7 +192,7 @@ function gotPhoto(inp){
     const stamp=CTX.name+" · "+pad(now.getDate())+"/"+pad(now.getMonth()+1)+" "+pad(now.getHours())+":"+pad(now.getMinutes());
     x.fillStyle="rgba(0,0,0,.55)"; x.fillRect(0,h-30,w,30);
     x.fillStyle="#fff"; x.font="15px sans-serif"; x.fillText(stamp,10,h-10);
-    photoData=c.toDataURL("image/jpeg",0.55);
+    photoData=c.toDataURL("image/jpeg",0.5);
     const el=document.getElementById("shot"); el.src=photoData; el.style.display="block";
     const b=document.getElementById("btn-in")||document.getElementById("btn-out");
     if(b) b.disabled=false;

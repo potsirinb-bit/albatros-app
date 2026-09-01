@@ -125,7 +125,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b19";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b20";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
 /* ── Supabase (เปิดใช้ 1 ก.ย. 2569) ──
@@ -155,7 +155,16 @@ const DB_DEF = { staff:[], leaves:[], hrdocs:[], attendance:[], payrolls:[],
 function persistRead(){ return localStorage.getItem(DB_KEY); }
 let lastLocalSave = "", lastCloudOk = "";
 function nowHM(){ const d=new Date(),p=x=>String(x).padStart(2,"0"); return p(d.getHours())+":"+p(d.getMinutes()); }
-function persistWrite(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); lastLocalSave = nowHM(); if(typeof cloudSchedulePush==="function") cloudSchedulePush(); }
+/* localStorage เป็นแค่แคช — ถ้าเต็ม (QuotaExceeded) ห้ามให้ throw ทะลุไปพังการบันทึก
+   ของจริงอยู่ cloud อยู่แล้ว แค่เตือนแล้วไปต่อ (บทเรียน: รูปลงเวลาเคยทำก้อนบวม) */
+function persistWrite(){
+  try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); lastLocalSave = nowHM(); }
+  catch(e){
+    lastLocalSave = "";
+    if(!window.__quotaWarned){ window.__quotaWarned = 1; notify("พื้นที่แคชในเครื่องเต็ม — ข้อมูลยังบันทึกขึ้น cloud ปกติ"); }
+  }
+  if(typeof cloudSchedulePush==="function") cloudSchedulePush();
+}
 function syncStatusText(){
   let t = "เครื่องนี้ ✓" + (lastLocalSave ? " "+lastLocalSave : "");
   if(!cloudOn) return t;
@@ -294,7 +303,7 @@ async function cloudPull(manual){
       db.settings = Object.assign(JSON.parse(JSON.stringify(DEF_SETTINGS)), setRows[0].data||{});
       db.settings.rates = Object.assign(JSON.parse(JSON.stringify(DEF_SETTINGS.rates)), (setRows[0].data||{}).rates||{});
     }
-    localStorage.setItem(DB_KEY, JSON.stringify(db));   // แคชตรงๆ ไม่ผ่าน persistWrite (กัน push วน)
+    try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){}   // แคชตรงๆ ไม่ผ่าน persistWrite (กัน push วน) · เต็มก็ข้ามไป ของจริงอยู่ cloud
     __snap = snapFrom(db);
     lastCloudOk = nowHM();
     setCloud("ok");
@@ -873,8 +882,11 @@ function renderAttendance(){
       esc(r.timeOut||"—"),
       workHours(r.timeIn, r.timeOut).toFixed(1),
       o.h ? o.h.toFixed(1)+" (วันหยุด)" : o.n.toFixed(1),
-      r.holiday ? chip("วันหยุด","c-ใหม่") : "",
-      lnk("แก้","openAttForm('"+r.id+"')") + lnk("ลบ","delRow('attendance','"+r.id+"')","del")
+      (r.holiday ? chip("วันหยุด","c-ใหม่") : "")
+        + (r.source==="line" ? ' <span class="chip c-เสร็จ">ไลน์</span>' : ""),
+      (r.photoIn ? lnk("📷 เข้า","viewCheckinPhoto('"+r.photoIn+"','"+esc(staffName(r.staffId))+" เข้างาน "+esc(r.timeIn||"")+"')") : "")
+      + (r.photoOut ? lnk("📷 ออก","viewCheckinPhoto('"+r.photoOut+"','"+esc(staffName(r.staffId))+" เลิกงาน "+esc(r.timeOut||"")+"')") : "")
+      + lnk("แก้","openAttForm('"+r.id+"')") + lnk("ลบ","delRow('attendance','"+r.id+"')","del")
     ];
   });
   return h + tbl(cols, rows);
@@ -2419,6 +2431,26 @@ async function autoPull(){
 document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) autoPull(); });
 window.addEventListener("focus", ()=>{ autoPull(); });
 
+/* รูปลงเวลาเก็บแยกตาราง checkin_photos — โหลดทีละใบตอนกดดู (ไม่ถ่วงก้อนข้อมูลหลัก) */
+async function viewCheckinPhoto(pid, title){
+  if(!pid) return;
+  if(String(pid).slice(0,5)==="data:"){   // ของเก่าที่ยังฝัง base64 อยู่ (ก่อนย้ายตาราง)
+    openModal(title, '<img src="'+pid+'" style="width:100%;border-radius:8px">'); return;
+  }
+  openModal(title, '<div class="sub" id="ph-box">กำลังโหลดรูป…</div>');
+  try{
+    const res = await sbReq("/rest/v1/checkin_photos?id=eq."+encodeURIComponent(pid)+"&select=data");
+    if(!res.ok) throw new Error("โหลดไม่ได้ ("+res.status+")");
+    const rows = await res.json();
+    const el = document.getElementById("ph-box"); if(!el) return;
+    el.outerHTML = rows.length
+      ? '<img src="'+rows[0].data+'" style="width:100%;border-radius:8px">'
+      : '<div class="empty">ไม่พบรูป (อาจถูกล้างตามอายุเก็บ 120 วัน)</div>';
+  }catch(e){
+    const el = document.getElementById("ph-box");
+    if(el) el.textContent = "โหลดรูปไม่ได้: " + (e.message||e) + " — ต้องล็อกอิน cloud ก่อน";
+  }
+}
 async function openLineBind(){
   openModal("ผูกไลน์พนักงาน", '<div class="note">พนักงานพิมพ์ <b>ผูกไลน์</b> ในแชทไลน์ร้าน → พิมพ์ <b>ผูก ชื่อตัวเอง</b> → ได้ลิงก์ส่วนตัว (ลงเวลา · เบิกเงิน · สลิป)</div><div id="lb-box" class="sub">กำลังโหลด…</div>');
   try{
