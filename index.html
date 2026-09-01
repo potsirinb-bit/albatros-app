@@ -1757,28 +1757,69 @@ function calcLine(staff, period){
 function payStaff(){ return db.staff.filter(s => (+s.salary||0) > 0 && s.status!=="inactive"); }
 function payLines(p){ return p.closed ? p.lines : payStaff().map(s=>calcLine(s, p.period)); }
 
+/* หน้าเงินเดือนแบบเต็มหน้า (คุณโอขอ 1 ก.ย. 2569): เลือกเดือนบนหัวเหมือนหน้าค่าคอม
+   ตารางโชว์เลยไม่ต้องกดพรีวิว · ปุ่มปิดงวดของเดือนนั้นอยู่บนหัว · ปิดแล้ว = แช่แข็งเหมือนเดิม */
+let payMonth = "";
+function setPayMonth(v){ payMonth = v; render(); }
+function closePayMonth(period){
+  appConfirm("ปิดงวด "+beMonth(period)+" ?\nตัวเลขจะถูกแช่แข็งถาวร แก้ไม่ได้อีก และสลิปจะขึ้นให้พนักงาน (หน้าไลน์) ทันที", ()=>{
+    let rec = db.payrolls.find(x=>x.period===period);
+    if(!rec){
+      rec = { id:uid(), period, closed:false, closedAt:null,
+              ssoRate:null, ssoCap:null, otMult:null, otHolidayMult:null, note:RATE_NOTE, lines:[] };
+      db.payrolls.unshift(rec);
+    }
+    if(rec.closed === true) return;   // กันปิดซ้ำ
+    const S = db.settings;
+    rec.lines   = payStaff().map(s=>calcLine(s, period));   // คำนวณครั้งสุดท้าย
+    rec.ssoRate = S.ssoRate; rec.ssoCap = S.ssoCap; rec.otMult = S.otMult; rec.otHolidayMult = S.otHolidayMult;
+    rec.closed  = true; rec.closedAt = todayStr();
+    save(); render();
+  }, "ปิดงวด");
+}
 function renderPayrolls(){
   const S = db.settings;
-  let h = head("เงินเดือน", "ออกงวด → ปิดงวด → พิมพ์สลิป · ค่าคอมดึงจากแท็บค่าคอมอัตโนมัติ", "openPayrollForm");
-  h += '<div class="note">'+esc(RATE_NOTE)+' · ปกส. '+(S.ssoRate*100)+'% เพดาน '+S.ssoCap+' · OT ×'+S.otMult+' · OT วันหยุด ×'+S.otHolidayMult+'</div>';
-  if(!db.payrolls.length) return h + empty("ยังไม่มีงวดเงินเดือน กดปุ่ม + เพิ่ม เพื่อออกงวดแรก");
-  const cols = [{t:"งวด"},{t:"จำนวนคน",c:"num"},{t:"ยอดสุทธิรวม",c:"num"},{t:"สถานะ"},{c:"act"}];
-  const rows = db.payrolls.map(p=>{
-    const lines = payLines(p);
-    const act = p.closed
-      ? lnk("ดูสลิป","openPayrollDetail('"+p.id+"')")
-      : lnk("ดูพรีวิว","openPayrollDetail('"+p.id+"')")
-        + lnk("ปิดงวด","closePayroll('"+p.id+"')")
-        + lnk("ลบ","delRow('payrolls','"+p.id+"')","del");
+  const p = payMonth || curMonth();
+  const rec = db.payrolls.find(x=>x.period===p);
+  const closed = !!(rec && rec.closed);
+  let h = head("เงินเดือน", "เลือกเดือน → ตรวจตาราง → ปิดงวด · ค่าคอม/OT/เบิก ดึงให้อัตโนมัติ", "");
+  h += '<div class="bar"><span class="lbl">เดือน</span>'
+    + '<input class="inp" type="month" value="'+esc(p)+'" onchange="setPayMonth(this.value)">'
+    + (closed
+        ? chip("ปิดงวดแล้ว "+thDate(rec.closedAt),"c-เสร็จ")
+        : '<button class="btn" onclick="closePayMonth(\''+p+'\')">🔒 ปิดงวด '+beMonth(p)+'</button>')
+    + '</div>';
+  h += closed
+    ? '<div class="note">งวดนี้แช่แข็งแล้ว · อัตราที่ใช้: ปกส. '+(rec.ssoRate*100)+'% เพดาน '+rec.ssoCap+' · OT ×'+rec.otMult+' · วันหยุด ×'+rec.otHolidayMult+'</div>'
+    : '<div class="note">ยังไม่ปิดงวด — ตัวเลขคำนวณสด เปลี่ยนตามเช็คชื่อ/งานรถ/เบิกที่แก้ · ปกส. '+(S.ssoRate*100)+'% เพดาน '+S.ssoCap+' · OT ×'+S.otMult+' · วันหยุด ×'+S.otHolidayMult+'</div>';
+  const lines = closed ? rec.lines : payStaff().map(s=>calcLine(s, p));
+  if(!lines.length) return h + empty("ยังไม่มีพนักงานที่มีเงินเดือนในงวดนี้ — ใส่เงินเดือนในแท็บพนักงานก่อน");
+  const sum = k => lines.reduce((t,l)=>t+(+l[k]||0),0);
+  h += '<div class="kpis">'
+    + '<div class="kpi"><span class="lbl">จำนวนคน</span><b>'+lines.length+'</b></div>'
+    + '<div class="kpi"><span class="lbl">ค่าคอมรวม</span><b>'+baht(sum("comm"))+'</b></div>'
+    + '<div class="kpi"><span class="lbl">หักเบิกรวม</span><b>'+baht(sum("advance"))+'</b></div>'
+    + '<div class="kpi big-net"><span class="lbl">ยอดสุทธิจ่ายรวม</span><b>'+baht(sum("net"))+'</b></div></div>';
+  const cols = [{t:"ชื่อ"},{t:"ฐาน",c:"num"},{t:"ค่าบ้าน",c:"num"},{t:"ค่าคอม",c:"num"},
+                {t:"OT ชม.",c:"num"},{t:"OT บาท",c:"num"},{t:"หัก ปกส.",c:"num"},{t:"หักเบิก",c:"num"},{t:"สุทธิ",c:"num"},{c:"act"}];
+  const rows = lines.map(l=>{
+    const st = db.staff.find(x=>x.id===l.staffId);
     return [
-      esc(p.period),
-      String(lines.length),
-      baht(lines.reduce((t,l)=>t+l.net,0)),
-      p.closed ? chip("ปิดงวดแล้ว","c-เสร็จ") : chip("ร่าง","c-ใหม่"),
-      act
+      esc(l.name) + (st && st.noSso ? ' <span class="chip c-ใหม่">ไม่หัก ปกส.</span>' : ''),
+      baht(l.base), baht(l.house||0), baht(l.comm||0),
+      ((l.otNHours||0)+(l.otHHours||0)).toFixed(1),
+      baht(Math.round((l.otNPay||0)+(l.otHPay||0))),
+      baht(Math.round(l.sso)), baht(l.advance||0),
+      "<b>"+baht(Math.round(l.net))+"</b>",
+      closed ? lnk("พิมพ์สลิป","printSlip('"+rec.id+"','"+l.staffId+"')") : ""
     ];
   });
-  return h + tbl(cols, rows);
+  h += tbl(cols, rows);
+  h += '<div class="sub">งวดเก่า: '
+    + (db.payrolls.length ? db.payrolls.slice().sort((a,b)=>String(b.period).localeCompare(String(a.period)))
+        .map(x=>'<button class="lnk" onclick="setPayMonth(\''+esc(x.period)+'\')">'+beMonth(x.period)+(x.closed?" ✓":" (ร่าง)")+'</button>').join(" · ")
+      : "ยังไม่มี")+'</div>';
+  return h;
 }
 function openPayrollForm(id){
   const r = id ? db.payrolls.find(x=>x.id===id) : null;
