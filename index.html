@@ -125,7 +125,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b15";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b16";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
 /* ── Supabase (เปิดใช้ 1 ก.ย. 2569) ──
@@ -153,7 +153,15 @@ const DB_DEF = { staff:[], leaves:[], hrdocs:[], attendance:[], payrolls:[],
                  advances:[], money:[], jobs:[], settings: DEF_SETTINGS };
 
 function persistRead(){ return localStorage.getItem(DB_KEY); }
-function persistWrite(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); if(typeof cloudSchedulePush==="function") cloudSchedulePush(); }
+let lastLocalSave = "", lastCloudOk = "";
+function nowHM(){ const d=new Date(),p=x=>String(x).padStart(2,"0"); return p(d.getHours())+":"+p(d.getMinutes()); }
+function persistWrite(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); lastLocalSave = nowHM(); if(typeof cloudSchedulePush==="function") cloudSchedulePush(); }
+function syncStatusText(){
+  let t = "เครื่องนี้ ✓" + (lastLocalSave ? " "+lastLocalSave : "");
+  if(!cloudOn) return t;
+  if(!sbSession) return t + " · cloud: ยังไม่ล็อกอิน";
+  return t + " · cloud " + (lastCloudOk ? "✓ "+lastCloudOk : "รอส่ง…");
+}
 
 /* ============================================================
    ชั้น cloud (Supabase REST ล้วน — ไม่ใช้ไลบรารีนอก ไม่มีของโหลดช้า)
@@ -288,6 +296,7 @@ async function cloudPull(manual){
     }
     localStorage.setItem(DB_KEY, JSON.stringify(db));   // แคชตรงๆ ไม่ผ่าน persistWrite (กัน push วน)
     __snap = snapFrom(db);
+    lastCloudOk = nowHM();
     setCloud("ok");
     if(manual) notify("ซิงค์จาก cloud เรียบร้อย ("+total+" รายการ)");
   }catch(e){
@@ -301,6 +310,7 @@ async function cloudPushAll(){
     for(const t of SB_TABLES) if((db[t]||[]).length) await sbUpsert(t, db[t]);
     await sbSaveSettings();
     __snap = snapFrom(db);
+    lastCloudOk = nowHM();
     setCloud("ok");
     notify("อัปโหลดข้อมูลขึ้น cloud ครบแล้ว — ทุกเครื่องที่ล็อกอินจะเห็นก้อนเดียวกัน");
   }catch(e){ setCloud("err", String(e.message||e)); notify("อัปโหลดไม่สำเร็จ: "+(e.message||e)); }
@@ -327,6 +337,7 @@ async function cloudPushDiff(){
     }
     const setStr = JSON.stringify(db.settings||{});
     if(setStr !== __snap.__settings){ await sbSaveSettings(); __snap.__settings = setStr; }
+    lastCloudOk = nowHM();
     if(cloudStatus!=="ok") setCloud("ok");
   }catch(e){ setCloud("err", String(e.message||e)); }
   __pushing = false;
@@ -1276,6 +1287,31 @@ function jobSpecial(j){
 }
 let jobsMonth = "";
 function setJobsMonth(v){ jobsMonth = v; render(); }
+/* ปุ่มบันทึก+พิสูจน์: ส่งขึ้น cloud เดี๋ยวนี้ แล้ว "นับกลับจาก cloud จริง" มาเทียบกับหน้าจอ
+   (คุณโอขอ 1 ก.ย. — เจ็บมาเยอะเรื่องข้อมูลหาย ต้องมีหลักฐานว่าบันทึกจริง ไม่ใช่แค่ toast) */
+async function saveVerifyJobs(p){
+  save();
+  const localN = db.jobs.filter(j=>monthOf(j.date)===p).length;
+  if(!cloudOn || !sbSession){
+    notify("บันทึกลงเครื่องนี้แล้ว ✓ (งานเดือน "+beMonth(p)+" "+localN+" ใบ)\n⚠️ ยังไม่ได้ล็อกอิน cloud — ข้อมูลยังอยู่เครื่องเดียว");
+    return;
+  }
+  notify("กำลังส่งขึ้น cloud แล้วตรวจนับ…");
+  try{
+    if(!__snap) await cloudPushAll();
+    else await cloudPushDiff();
+    const res = await sbReq("/rest/v1/jobs?select=id&"+encodeURIComponent("data->>date")+"=like."+p+"*",
+      { headers:{ "Range":"0-0", "Range-Unit":"items", "Prefer":"count=exact" } });
+    const cr = res.headers.get("content-range") || "";
+    const total = +(cr.split("/")[1]) || 0;
+    if(total === localN)
+      notify("✅ ยืนยันจาก cloud จริง: งานเดือน "+beMonth(p)+" มี "+total+" ใบ ตรงกับหน้าจอเป๊ะ — บันทึกถาวรแล้ว");
+    else
+      notify("⚠️ cloud มี "+total+" ใบ แต่หน้าจอมี "+localN+" ใบ — กดปุ่มนี้ซ้ำอีกครั้ง ถ้ายังไม่ตรงแจ้ง Claude");
+    render();
+  }catch(e){ notify("ส่งไม่สำเร็จ: "+(e.message||e)+" — ข้อมูลยังอยู่ในเครื่องครบ ลองกดใหม่"); }
+}
+
 /* dropdown สาขาในแถวตาราง — สลับโคราช/บุรีรัมย์ได้ทันคัน (มีผลกติกาหมวย+ฐาน 1% ทันที) */
 function setJobBranch(id, b){
   const j = db.jobs.find(x=>x.id===id); if(!j) return;
@@ -1289,7 +1325,9 @@ function renderJobs(){
   let h = head("งานรถ", "บันทึกรายคัน — ต้นทางกองกลาง + ค่าคอมพิเศษ (เฟสหน้าดึงจากแอป Tree)", "openJobForm");
   h += '<div class="bar"><span class="lbl">เดือน</span>'
     + '<input class="inp" type="month" value="'+esc(p)+'" onchange="setJobsMonth(this.value)">'
-    + '<button class="btn ghost" onclick="openDb3Import()">นำเข้า Database3 (CSV)</button></div>';
+    + '<button class="btn ghost" onclick="openDb3Import()">นำเข้า Database3 (CSV)</button>'
+    + '<button class="btn" onclick="saveVerifyJobs(\''+p+'\')">💾 บันทึก + ตรวจกับ cloud</button>'
+    + '<span class="sub">'+esc(syncStatusText())+'</span></div>';
   const list = db.jobs.filter(j=>monthOf(j.date)===p);
   const sales = list.reduce((t,j)=>t+(+j.amount||0),0);
   const pool  = list.reduce((t,j)=>t+jobPool(j),0);
