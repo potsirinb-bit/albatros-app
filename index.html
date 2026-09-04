@@ -125,7 +125,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b20";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b21";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
 /* ── Supabase (เปิดใช้ 1 ก.ย. 2569) ──
@@ -1687,7 +1687,8 @@ function renderCommission(){
   h += tbl([{t:"พนักงาน"},{t:"ตำแหน่ง"},{t:"รูปแบบ"},{t:"ค่าคอมเดือนนี้",c:"num"},{c:"act"}],
     perStaff.slice().sort((a,b)=>b.comm-a.comm).map(x=>[
       esc(x.st.name), esc(x.st.role||"—"), esc(COMM_ROLES[x.st.commissionRole]||"—"), "<b>"+baht(x.comm)+"</b>",
-      x.st.commissionRole==="special" ? lnk("รายคัน","openSpecialDetail('"+x.st.id+"','"+p+"')") : ""
+      x.st.commissionRole==="special" ? lnk("รายคัน","openSpecialDetail('"+x.st.id+"','"+p+"')")
+      : x.st.commissionRole==="percent" ? lnk("รายวัน","openPercentDetail('"+x.st.id+"','"+p+"')") : ""
     ]));
 
   h += '<div class="sub">รายวัน (แบบชีต Commission)</div>';
@@ -1699,6 +1700,46 @@ function renderCommission(){
     ]));
   return h;
 }
+/* รายวันของคนแบบ % (หมวย) — คุณโอถาม 1 ก.ย.: "ทำไมไม่เท่ากับ 1% ของยอดโคราชเป๊ะ"
+   คำตอบอยู่ที่วัน "บร": วันนั้นงด 1% แล้วรับส่วนแบ่งผู้ช่วยจากกองรวมสองสาขาแทน
+   ตารางนี้โชว์ทีละวันว่าได้จากทางไหน + ผลต่างเทียบกับถ้าอยู่โคราชทั้งเดือน */
+function openPercentDetail(staffId, period){
+  const st = db.staff.find(x=>x.id===staffId); if(!st) return;
+  const rate = db.settings.rates.percentRate;
+  const days = monthDates(period).map(dayCommission);
+  if(!days.length){ openModal("รายวัน — "+esc(st.name), empty("เดือนนี้ยังไม่มีงานรถ")); return; }
+  let gotPct = 0, gotAsst = 0, nAway = 0, lostPct = 0;
+  const rows = days.map(dc=>{
+    const away = !!(dc.present[st.id] && dc.away[st.id]);
+    const pct  = dc.salesKorat * rate;
+    const got  = away ? dc.asstEach : pct;
+    if(away){ nAway++; gotAsst += got; lostPct += pct; } else gotPct += got;
+    const salesBur = dc.sales - dc.salesKorat;
+    return [
+      thDate(dc.date),
+      baht(dc.salesKorat) + (salesBur ? ' <span class="sub">+บร '+baht(salesBur)+'</span>' : ''),
+      baht(dc.pool),
+      away ? chip("ไปบุรีรัมย์","c-ใหม่") : chip("อยู่โคราช","c-เสร็จ"),
+      away ? '<span class="sub">งด '+baht(Math.round(pct))+'</span>' : "<b>"+baht(Math.round(pct))+"</b>",
+      away ? "<b>"+baht(Math.round(dc.asstEach))+"</b> <span class=\"sub\">÷"+dc.nAsst+" คน</span>" : "—",
+      "<b>"+baht(Math.round(got))+"</b>"
+    ];
+  });
+  const total = gotPct + gotAsst;
+  const flat  = days.reduce((t,dc)=>t+dc.salesKorat*rate, 0);
+  let body = '<div class="kpis">'
+    + '<div class="kpi"><span class="lbl">วันอยู่โคราช ('+(days.length-nAway)+' วัน) — '+(rate*100)+'% ยอดโคราช</span><b>'+baht(Math.round(gotPct))+'</b></div>'
+    + '<div class="kpi"><span class="lbl">วันไปบุรีรัมย์ ('+nAway+' วัน) — ส่วนแบ่งผู้ช่วยกองรวม</span><b>'+baht(Math.round(gotAsst))+'</b>'
+    + (nAway ? '<span class="sub">แทน '+(rate*100)+'% ที่งดไป '+baht(Math.round(lostPct))+'</span>' : '') + '</div>'
+    + '<div class="kpi hot"><span class="lbl">รวมทั้งเดือน</span><b>'+baht(Math.round(total))+'</b>'
+    + '<span class="sub">ถ้าอยู่โคราชทั้งเดือนจะได้ '+baht(Math.round(flat))+' ('+(total>=flat?"+":"")+baht(Math.round(total-flat))+')</span></div>'
+    + '</div>';
+  body += tbl([{t:"วันที่"},{t:"ยอดขาย",c:"num"},{t:"กองกลาง",c:"num"},{t:"อยู่ไหน"},
+               {t:(rate*100)+"% โคราช",c:"num"},{t:"ส่วนแบ่งผู้ช่วย",c:"num"},{t:"ได้จริง",c:"num"}], rows);
+  body += '<div class="sub">กติกา: วันไปบุรีรัมย์ = งด '+(rate*100)+'% แล้วเป็นผู้ช่วยของกองรวมทั้งสองสาขาเต็มตัว (รับเท่าผู้ช่วยคนอื่น) · ยอดบุรีรัมย์ไม่เข้าฐาน '+(rate*100)+'% · ติ๊ก "บร" ได้ที่แท็บเช็คชื่อ Manual</div>';
+  openModal("รายวัน — "+esc(st.name)+" · "+beMonth(period), body);
+}
+
 /* รายคันของช่างพิเศษ (หม่าว) — โชว์สาขาต่อคัน + สรุปแยกสาขา (คุณโอขอ 1 ก.ย. 2569) */
 function openSpecialDetail(staffId, period){
   const st = db.staff.find(x=>x.id===staffId); if(!st) return;
