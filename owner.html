@@ -56,6 +56,16 @@ button{font:inherit;color:inherit;cursor:pointer}
 .done{text-align:center;padding:40px 20px}
 .done .ic{font-size:56px}
 .done .t{font-size:22px;font-weight:700;margin-top:6px}
+.daybar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.daybar .nav{background:var(--card);border:1px solid var(--line);border-radius:10px;
+  width:42px;height:44px;font-size:20px;font-weight:700;color:var(--brand);flex:0 0 auto}
+.daybar input{flex:1;padding:11px;border:1px solid var(--line);border-radius:10px;
+  background:var(--card);color:var(--ink);font:inherit;font-size:16px;text-align:center}
+.today{background:var(--brand-soft);color:var(--brand);border:0;border-radius:10px;
+  padding:11px 13px;font-weight:700;font-size:14px;flex:0 0 auto}
+.grp{font-size:13px;font-weight:700;color:var(--dim);margin:14px 0 7px}
+.more{background:var(--new-soft);color:var(--new);border:0;border-radius:var(--radius);
+  padding:13px;width:100%;font-weight:700;font-size:14.5px;margin-top:6px}
 </style>
 </head>
 <body>
@@ -95,23 +105,67 @@ function fail(m){app().innerHTML='<div class="empty">'+esc(m)+'</div>';}
 
 async function boot(){
   if(!T){ fail("ลิงก์ไม่ถูกต้อง — เปิดจากการ์ดในไลน์ของเจ้าของเท่านั้น"); return; }
-  if(ID) showOne(ID); else showList();
+  if(ID) showOne(ID); else showDay();
 }
 
-/* ── รายการค้าง ── */
-async function showList(){
+/* ── รายวัน: เลือกวันได้ ไม่ให้ของค้างวันอื่นมาปน (คุณโอขอ 5 ก.ย.) ── */
+function todayStr(){const d=new Date(),p=x=>String(x).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
+function shiftDay(base,n){const d=new Date(base+"T00:00:00");d.setDate(d.getDate()+n);
+  const p=x=>String(x).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
+let DAY=todayStr();
+function setDay(v){ if(!v) return; DAY=v; showDay(); }
+
+async function showDay(){
+  app().innerHTML='<div class="empty">กำลังโหลด…</div>';
+  let r; try{ r=await rpc("owner_day",{p_t:T,p_date:DAY}); }catch(e){ fail("ต่อเซิร์ฟเวอร์ไม่ได้"); return; }
+  if(!r.ok){ fail("ลิงก์หมดอายุหรือไม่ถูกต้อง — พิมพ์ ค้างอนุมัติ ในไลน์เพื่อรับลิงก์ใหม่"); return; }
+  const rows=r.rows||[], s=r.sums||{};
+  let h='<div class="daybar">'
+    +'<button class="nav" onclick="setDay(shiftDay(DAY,-1))">‹</button>'
+    +'<input type="date" value="'+esc(DAY)+'" onchange="setDay(this.value)">'
+    +'<button class="nav" onclick="setDay(shiftDay(DAY,1))">›</button>'
+    +(DAY!==todayStr()?'<button class="today" onclick="setDay(todayStr())">วันนี้</button>':'')
+    +'</div>'
+    +'<div class="sub" style="margin-bottom:10px">'+thDate(DAY)+'</div>';
+
+  h+='<div class="facts">'
+    +'<div class="fact"><span class="lbl">ยื่นเบิกวันนี้ (ไม่รวมที่ปฏิเสธ)</span><b>'+baht(s.total)+' ฿</b></div>'
+    +'<div class="fact'+((+s.pending||0)>0?' warn':'')+'"><span class="lbl">ยังรออนุมัติ</span><b>'+baht(s.pending)+' ฿</b></div>'
+    +'<div class="fact"><span class="lbl">อนุมัติแล้ว รอโอน</span><b>'+baht(s.approved)+' ฿</b></div>'
+    +'<div class="fact"><span class="lbl">โอนแล้ว</span><b>'+baht(s.paid)+' ฿</b></div>'
+    +'</div>';
+
+  if(!rows.length) h+='<div class="empty">วันนี้ยังไม่มีใครยื่นเบิก</div>';
+  else h+=rows.map(x=>'<button class="item" onclick="showOne(\''+x.id+'\')">'
+      +'<div><div class="nm">'+esc(x.name||"—")+'</div>'
+      +'<div class="mt">'+esc(x.reason||"ไม่ระบุเหตุผล")+'</div>'
+      +'<div style="margin-top:4px">'+chip(x.status)+'</div></div>'
+      +'<div class="am">'+baht(x.amount)+'</div></button>').join('');
+
+  if(r.otherCount>0)
+    h+='<button class="more" onclick="showAll()">⏳ ค้างจากวันอื่นอีก '+r.otherCount+' ใบ · '
+      +baht(r.otherSum)+' ฿ — กดดู</button>';
+  app().innerHTML=h;
+}
+
+/* ── ค้างทั้งหมดทุกวัน (กันตกหล่น) ── */
+async function showAll(){
   app().innerHTML='<div class="empty">กำลังโหลด…</div>';
   let r; try{ r=await rpc("owner_pending",{p_t:T}); }catch(e){ fail("ต่อเซิร์ฟเวอร์ไม่ได้"); return; }
-  if(!r.ok){ fail("ลิงก์หมดอายุหรือไม่ถูกต้อง — พิมพ์ ค้างอนุมัติ ในไลน์เพื่อรับลิงก์ใหม่"); return; }
+  if(!r.ok){ fail("ลิงก์ไม่ถูกต้อง"); return; }
   const rows=r.rows||[];
-  if(!rows.length){ app().innerHTML='<div class="empty">ไม่มีรายการค้าง ✅<br><span class="sub">ทุกใบอนุมัติและโอนครบแล้ว</span></div>'; return; }
+  if(!rows.length){ app().innerHTML='<div class="empty">ไม่มีรายการค้าง ✅</div>'
+      +'<button class="btn ghost" onclick="showDay()">← กลับหน้ารายวัน</button>'; return; }
   const sum=rows.reduce((t,x)=>t+(+x.amount||0),0);
-  app().innerHTML='<div class="sub" style="margin-bottom:10px">ค้างอยู่ '+rows.length+' รายการ · รวม <b>'+baht(sum)+' ฿</b></div>'
+  app().innerHTML='<div class="sub" style="margin-bottom:10px">ค้างทุกวันรวม '+rows.length+' ใบ · <b>'+baht(sum)+' ฿</b></div>'
     + rows.map(x=>'<button class="item" onclick="showOne(\''+x.id+'\')">'
         +'<div><div class="nm">'+esc(x.name||"—")+'</div>'
         +'<div class="mt">'+thDate(x.at)+' · '+esc(x.reason||"ไม่ระบุเหตุผล")+'</div>'
         +'<div style="margin-top:4px">'+chip(x.status)+'</div></div>'
-        +'<div class="am">'+baht(x.amount)+'</div></button>').join('');
+        +'<div class="am">'+baht(x.amount)+'</div></button>').join('')
+    + '<button class="btn ghost" onclick="showDay()">← กลับหน้ารายวัน</button>';
 }
 
 /* ── รายละเอียด 1 ใบ ── */
@@ -162,7 +216,7 @@ async function showOne(id){
         +'<b>'+baht(x.amount)+' '+(ST[x.status]?ST[x.status][0]:"")+'</b></div>').join('')
       +'</div></div>';
   }
-  h+='<button class="btn ghost" onclick="showList()">← ดูรายการค้างทั้งหมด</button>';
+  h+='<button class="btn ghost" onclick="showDay()">← กลับหน้ารายวัน</button>';
   app().innerHTML=h;
 }
 
@@ -203,7 +257,7 @@ async function pay(){
     slipData="";
     app().innerHTML='<div class="done"><div class="ic">✅</div><div class="t">บันทึกโอนแล้ว</div>'
       +'<div class="sub">'+esc(CUR.name)+' · '+baht(CUR.amount)+' ฿<br>ลงบัญชีเงินออกเรียบร้อย</div>'
-      +'<div style="margin-top:20px"><button class="btn ghost" onclick="showList()">ดูรายการค้างอื่น</button></div></div>';
+      +'<div style="margin-top:20px"><button class="btn ghost" onclick="showDay()">กลับหน้ารายวัน</button></div></div>';
   }catch(e){ toast("ต่อเซิร์ฟเวอร์ไม่ได้"); b.disabled=false; b.textContent="บันทึกว่าโอนแล้ว"; }
 }
 
