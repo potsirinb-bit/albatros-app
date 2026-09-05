@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Albatros — อนุมัติเบิกเงิน</title>
+<style>
+:root{
+  --bg:#f4f6f8; --card:#ffffff; --line:#e3e8ee; --ink:#1f2937; --dim:#6b7280;
+  --brand:#0f766e; --brand-soft:#e6f4f1; --danger:#b91c1c; --danger-soft:#fdeaea;
+  --new:#92400e; --new-soft:#fef3c7; --done:#065f46; --done-soft:#d1fae5;
+  --radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans Thai",sans-serif;
+  font-size:15px;line-height:1.55;max-width:520px;margin:0 auto;padding:14px 14px 40px;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer}
+.brand{font-weight:700;font-size:17px;color:var(--brand);margin-bottom:12px}
+.sub{color:var(--dim);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.who{font-size:24px;font-weight:700}
+.amt{font-size:38px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums;line-height:1.15}
+.rsn{color:var(--dim);font-size:14px;margin-top:2px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 12px}
+.fact{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 13px}
+.fact .lbl{font-size:12px;color:var(--dim);display:block}
+.fact b{font-size:19px;font-variant-numeric:tabular-nums;display:block;margin-top:2px}
+.fact.warn{background:var(--new-soft);border-color:#fcd34d}
+.fact.warn b{color:var(--new)}
+.btn{border:0;border-radius:var(--radius);padding:15px;font-weight:700;width:100%;font-size:17px;
+  background:var(--brand);color:#fff;margin-bottom:9px}
+.btn.no{background:var(--card);color:var(--danger);border:1px solid var(--danger-soft)}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line);font-weight:600;font-size:15px}
+.btn[disabled]{opacity:.5}
+.row2{display:flex;gap:9px}
+.row2 .btn{margin-bottom:0}
+.chip{display:inline-block;padding:3px 11px;border-radius:999px;font-size:12.5px;font-weight:700}
+.c-ใหม่{background:var(--new-soft);color:var(--new)}
+.c-รอโอน{background:#dbeafe;color:#1e40af}
+.c-เสร็จ{background:var(--done-soft);color:var(--done)}
+.c-ปัด{background:var(--danger-soft);color:var(--danger)}
+.empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--radius);
+  padding:34px 16px;text-align:center;color:var(--dim)}
+.item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);padding:13px 15px;margin-bottom:9px;width:100%;text-align:left}
+.item .nm{font-weight:700;font-size:16px}
+.item .mt{font-size:12.5px;color:var(--dim)}
+.item .am{margin-left:auto;font-weight:800;font-size:19px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hist{border-top:1px solid var(--line);padding-top:10px;margin-top:12px}
+.hrow{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:5px 0;color:var(--dim)}
+.hrow b{color:var(--ink);font-variant-numeric:tabular-nums}
+.shot{width:100%;border-radius:10px;border:1px solid var(--line);margin:10px 0;display:block}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:12px 20px;border-radius:10px;font-size:14.5px;display:none;z-index:60;max-width:92%;text-align:center}
+.done{text-align:center;padding:40px 20px}
+.done .ic{font-size:56px}
+.done .t{font-size:22px;font-weight:700;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="brand">🔐 Albatros — เจ้าของร้าน</div>
+<div id="app"><div class="empty">กำลังโหลด…</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══ หน้าเจ้าของ — อนุมัติ → โอน → แนบสลิป จบบนมือถือ ไม่ต้องเปิด ERP ═══
+   ตัวตน = token ในลิงก์ที่บอทสร้าง (ผูกกับ LINE userId ของคุณโอ)
+   ทุกคำสั่งผ่าน RPC owner_* ที่ตรวจ token ฝั่งเซิร์ฟเวอร์ */
+const SB="https://hcnyqlskwzbjgroyzjjx.supabase.co";
+const SB_KEY="sb_publishable_XBpPT8yrgzQeEm0hskFNmQ_tc2MoCsl";
+const Q=new URLSearchParams(location.search);
+const T=Q.get("t")||"", ID=Q.get("id")||"", AUTO=Q.get("do")||"";
+
+const TH=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function baht(n){return (+n||0).toLocaleString("th-TH");}
+function thDate(s){if(!s)return "—";const p=String(s).slice(0,10).split("-");return (+p[2])+" "+TH[+p[1]-1]+" "+(+p[0]+543);}
+function thMonth(p){const a=String(p).split("-");return TH[+a[1]-1]+" "+(+a[0]+543);}
+function toast(m){const e=document.getElementById("toast");e.textContent=m;e.style.display="block";
+  clearTimeout(e._t);e._t=setTimeout(()=>e.style.display="none",2800);}
+const ST={pending:["รออนุมัติ","c-ใหม่"],approved:["อนุมัติแล้ว รอโอน","c-รอโอน"],
+          paid:["โอนแล้ว","c-เสร็จ"],rejected:["ปฏิเสธ","c-ปัด"]};
+function chip(s){const x=ST[s]||[s,""];return '<span class="chip '+x[1]+'">'+x[0]+'</span>';}
+
+async function rpc(fn,args){
+  const r=await fetch(SB+"/rest/v1/rpc/"+fn,{method:"POST",
+    headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY},
+    body:JSON.stringify(args||{})});
+  if(!r.ok) throw new Error("server "+r.status);
+  return r.json();
+}
+const app=()=>document.getElementById("app");
+function fail(m){app().innerHTML='<div class="empty">'+esc(m)+'</div>';}
+
+async function boot(){
+  if(!T){ fail("ลิงก์ไม่ถูกต้อง — เปิดจากการ์ดในไลน์ของเจ้าของเท่านั้น"); return; }
+  if(ID) showOne(ID); else showList();
+}
+
+/* ── รายการค้าง ── */
+async function showList(){
+  app().innerHTML='<div class="empty">กำลังโหลด…</div>';
+  let r; try{ r=await rpc("owner_pending",{p_t:T}); }catch(e){ fail("ต่อเซิร์ฟเวอร์ไม่ได้"); return; }
+  if(!r.ok){ fail("ลิงก์หมดอายุหรือไม่ถูกต้อง — พิมพ์ ค้างอนุมัติ ในไลน์เพื่อรับลิงก์ใหม่"); return; }
+  const rows=r.rows||[];
+  if(!rows.length){ app().innerHTML='<div class="empty">ไม่มีรายการค้าง ✅<br><span class="sub">ทุกใบอนุมัติและโอนครบแล้ว</span></div>'; return; }
+  const sum=rows.reduce((t,x)=>t+(+x.amount||0),0);
+  app().innerHTML='<div class="sub" style="margin-bottom:10px">ค้างอยู่ '+rows.length+' รายการ · รวม <b>'+baht(sum)+' ฿</b></div>'
+    + rows.map(x=>'<button class="item" onclick="showOne(\''+x.id+'\')">'
+        +'<div><div class="nm">'+esc(x.name||"—")+'</div>'
+        +'<div class="mt">'+thDate(x.at)+' · '+esc(x.reason||"ไม่ระบุเหตุผล")+'</div>'
+        +'<div style="margin-top:4px">'+chip(x.status)+'</div></div>'
+        +'<div class="am">'+baht(x.amount)+'</div></button>').join('');
+}
+
+/* ── รายละเอียด 1 ใบ ── */
+let CUR=null;
+async function showOne(id){
+  app().innerHTML='<div class="empty">กำลังโหลด…</div>';
+  let d; try{ d=await rpc("owner_adv",{p_t:T,p_id:id}); }catch(e){ fail("ต่อเซิร์ฟเวอร์ไม่ได้"); return; }
+  if(!d.ok){ fail(d.error==="not_owner" ? "ลิงก์ไม่ถูกต้อง" : "ไม่พบรายการนี้"); return; }
+  CUR=d;
+  const after=(+d.usedThisMonth||0)+(+d.amount||0);
+  const heavy=d.salary>0 && after > d.salary*0.5;
+  let h='<div class="card">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">'
+    +'<div><div class="who">'+esc(d.name)+'</div>'
+    +'<div class="sub">'+esc(d.role||"")+' · ยื่น '+thDate(d.at)+'</div></div>'
+    +chip(d.status)+'</div>'
+    +'<div class="amt" style="margin-top:10px">'+baht(d.amount)+' ฿</div>'
+    +'<div class="rsn">เหตุผล: '+esc(d.reason||"—")+'</div>';
+  if(d.bank) h+='<div class="sub" style="margin-top:8px">🏦 '+esc(d.bank)+(d.acctName?' · '+esc(d.acctName):'')+'</div>';
+  h+='</div>';
+
+  h+='<div class="facts">'
+    +'<div class="fact"><span class="lbl">เบิกแล้วเดือนนี้ ('+thMonth(d.period)+')</span><b>'+baht(d.usedThisMonth)+' ฿</b></div>'
+    +'<div class="fact"><span class="lbl">ฐานเงินเดือน</span><b>'+baht(d.salary)+' ฿</b></div>'
+    +'<div class="fact'+(heavy?' warn':'')+'"><span class="lbl">ถ้าอนุมัติใบนี้ รวมเป็น</span><b>'+baht(after)+' ฿</b></div>'
+    +'<div class="fact"><span class="lbl">เหลือจากฐานเงินเดือน</span><b>'+baht(Math.max(0,(+d.salary||0)-after))+' ฿</b></div>'
+    +'</div>';
+  if(d.pendingOther>0) h+='<div class="sub" style="margin-bottom:10px">⏳ ยังมีใบอื่นรออนุมัติอีก '+baht(d.pendingOther)+' ฿</div>';
+
+  if(d.status==="pending"){
+    h+='<div class="row2"><button class="btn no" onclick="decide(\'rejected\')">🚫 ปฏิเสธ</button>'
+      +'<button class="btn" onclick="decide(\'approved\')">✅ อนุมัติ</button></div>';
+  } else if(d.status==="approved"){
+    h+='<div class="card"><div class="sub" style="margin-bottom:8px">อนุมัติแล้ว — โอนเงินแล้วแนบสลิปเพื่อปิดรายการ</div>'
+      +'<img id="pv" class="shot" style="display:none">'
+      +'<input type="file" id="slip" accept="image/*" style="display:none" onchange="gotSlip(this)">'
+      +'<button class="btn ghost" onclick="document.getElementById(\'slip\').click()">📎 เลือกรูปสลิปโอน</button>'
+      +'<button class="btn" id="btn-pay" onclick="pay()" disabled>บันทึกว่าโอนแล้ว</button>'
+      +'<div class="sub" style="text-align:center">บันทึกแล้วแก้ไม่ได้ · ยอดจะลงบัญชีเงินออกทันที</div></div>';
+  } else {
+    h+='<div class="card"><div class="sub">รายการนี้ปิดแล้ว — ไม่ต้องทำอะไรเพิ่ม</div></div>';
+  }
+
+  const hist=(d.history||[]).filter(x=>x);
+  if(hist.length>1){
+    h+='<div class="card"><div class="sub"><b>รายการเบิกของ '+esc(d.name)+' เดือนนี้</b></div><div class="hist">'
+      +hist.map(x=>'<div class="hrow"><span>'+thDate(x.at)+' · '+esc(x.reason||"—")+'</span>'
+        +'<b>'+baht(x.amount)+' '+(ST[x.status]?ST[x.status][0]:"")+'</b></div>').join('')
+      +'</div></div>';
+  }
+  h+='<button class="btn ghost" onclick="showList()">← ดูรายการค้างทั้งหมด</button>';
+  app().innerHTML=h;
+}
+
+async function decide(status){
+  const btns=document.querySelectorAll(".btn"); btns.forEach(b=>b.disabled=true);
+  try{
+    const r=await rpc("owner_decide",{p_t:T,p_id:CUR.id,p_status:status});
+    if(!r.ok){ toast("ทำรายการไม่สำเร็จ"); btns.forEach(b=>b.disabled=false); return; }
+    if(r.already){ toast("ใบนี้ตัดสินไปแล้ว"); showOne(CUR.id); return; }
+    toast(status==="approved" ? "อนุมัติแล้ว ✅" : "ปฏิเสธแล้ว");
+    showOne(CUR.id);
+  }catch(e){ toast("ต่อเซิร์ฟเวอร์ไม่ได้"); btns.forEach(b=>b.disabled=false); }
+}
+
+/* สลิป: ย่อ 800px q0.72 เท่ากับที่ ERP ทำ แล้วเก็บตารางแยก */
+let slipData="";
+function gotSlip(inp){
+  const f=inp.files&&inp.files[0]; if(!f) return;
+  const img=new Image();
+  img.onload=()=>{
+    const sc=Math.min(1,800/img.width);
+    const c=document.createElement("canvas");
+    c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    slipData=c.toDataURL("image/jpeg",0.72);
+    const p=document.getElementById("pv"); p.src=slipData; p.style.display="block";
+    document.getElementById("btn-pay").disabled=false;
+    URL.revokeObjectURL(img.src);
+  };
+  img.src=URL.createObjectURL(f);
+}
+async function pay(){
+  if(!slipData){ toast("เลือกรูปสลิปก่อนครับ"); return; }
+  const b=document.getElementById("btn-pay"); b.disabled=true; b.textContent="กำลังบันทึก…";
+  try{
+    const r=await rpc("owner_pay",{p_t:T,p_id:CUR.id,p_slip:slipData});
+    if(!r.ok){ toast(r.message||"บันทึกไม่สำเร็จ"); b.disabled=false; b.textContent="บันทึกว่าโอนแล้ว"; return; }
+    slipData="";
+    app().innerHTML='<div class="done"><div class="ic">✅</div><div class="t">บันทึกโอนแล้ว</div>'
+      +'<div class="sub">'+esc(CUR.name)+' · '+baht(CUR.amount)+' ฿<br>ลงบัญชีเงินออกเรียบร้อย</div>'
+      +'<div style="margin-top:20px"><button class="btn ghost" onclick="showList()">ดูรายการค้างอื่น</button></div></div>';
+  }catch(e){ toast("ต่อเซิร์ฟเวอร์ไม่ได้"); b.disabled=false; b.textContent="บันทึกว่าโอนแล้ว"; }
+}
+
+boot();
+</script>
+</body>
+</html>

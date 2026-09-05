@@ -96,6 +96,8 @@ const SB = "https://hcnyqlskwzbjgroyzjjx.supabase.co";
 const SB_KEY = "sb_publishable_XBpPT8yrgzQeEm0hskFNmQ_tc2MoCsl";
 const K = new URLSearchParams(location.search).get("k") || "";
 const ADV_LIMIT_MONTH = 3000;
+// บอทไลน์ร้าน — ยิงไปบอกให้ดันการ์ดคำขอเบิกเข้าไลน์เจ้าของ (ยิงแล้วไม่รอผล ไม่ถ่วงจอ)
+const GAS_URL = "https://script.google.com/macros/s/AKfycbz3tM5QgsE5tqYVzdmk2oSQj85KeYsvCUxN5r0yakR98r4r_KL-4CGbBYXdjCP4DngSVA/exec";
 
 const TH_MON=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -260,6 +262,9 @@ async function submitAdv(){
   try{
     const r=await rpc("emp_adv_submit",{p_k:K,p_amount:amt,p_reason:why});
     if(!r.ok){toast("ส่งไม่สำเร็จ");b.disabled=false;b.textContent="ยื่นเบิก";return;}
+    try{ fetch(GAS_URL+"?page=checkin&act=notify&k="+encodeURIComponent(K)
+      +"&id="+encodeURIComponent(r.id)+"&amt="+amt+"&why="+encodeURIComponent(why.slice(0,120)),
+      {mode:"no-cors"}); }catch(e){}   // แจ้งเจ้าของทางไลน์ ล้มเหลวก็ไม่กระทบการยื่น
     closeModal(); toast("ยื่นเบิก "+baht(amt)+" ฿ แล้ว — รอพี่โออนุมัติ");
     renderAdv();
   }catch(e){toast("ต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่");b.disabled=false;b.textContent="ยื่นเบิก";}
