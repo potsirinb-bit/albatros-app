@@ -125,8 +125,9 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b24";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
-const DB_KEY = "albatrosERP.db.v6";   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
+const APP_VER = "b25";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const DB_KEY = "albatrosERP.db.v6";
+const OFFDOW_FROM = "2026-09";   // วันหยุดรายคน (ทีมบุรีรัมย์=พฤหัส) มีผลตั้งแต่เดือนนี้ · ก่อนหน้านี้ทุกคนหยุดอาทิตย์   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
 /* ── Supabase (เปิดใช้ 1 ก.ย. 2569) ──
    ก้อนข้อมูลกลางของทุกเครื่อง · localStorage เหลือหน้าที่เป็นแคช+โหมดออฟไลน์
@@ -303,10 +304,12 @@ async function cloudPull(manual){
       db.settings = Object.assign(JSON.parse(JSON.stringify(DEF_SETTINGS)), setRows[0].data||{});
       db.settings.rates = Object.assign(JSON.parse(JSON.stringify(DEF_SETTINGS.rates)), (setRows[0].data||{}).rates||{});
     }
+    __snap = snapFrom(db);                    // สภาพตรงกับ cloud ก่อนซ่อม
+    const fixed = runMigrations(db);          // cloud ทับ collection ทั้งก้อน → ต้องซ่อมใหม่ทุกครั้ง
     try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){}   // แคชตรงๆ ไม่ผ่าน persistWrite (กัน push วน) · เต็มก็ข้ามไป ของจริงอยู่ cloud
-    __snap = snapFrom(db);
     lastCloudOk = nowHM();
     setCloud("ok");
+    if(fixed) cloudSchedulePush();            // ส่งผลการซ่อมกลับขึ้น cloud ให้เครื่องอื่นเห็นด้วย
     if(manual) notify("ซิงค์จาก cloud เรียบร้อย ("+total+" รายการ)");
   }catch(e){
     setCloud(navigator.onLine===false ? "offline" : "err", String(e.message||e));
@@ -388,6 +391,27 @@ async function cloudBoot(){
   }catch(e){ setCloud("offline"); }
 }
 
+/* ซ่อม/เติมข้อมูลให้ตรงกติกาล่าสุด — idempotent รันกี่รอบก็ได้ผลเดิม
+   ⚠️ ต้องเรียกทั้งใน load() และหลัง cloudPull เพราะ cloud ทับ collection ทั้งก้อน
+   ห้ามใช้ธง __mig… มาบล็อก ไม่งั้นค่าที่โดน cloud ทับจะไม่ถูกซ่อมอีกเลย */
+function runMigrations(d){
+  let changed = false;
+  // ทีมบุรีรัมย์หยุดพฤหัส (ก.ย. 2569 เป็นต้นไป) — คุณโอแก้รายคนเองได้ในฟอร์มพนักงาน
+  const BURI = ["ปอนด์","โอ๋","ฟ้า","แมน"];
+  (d.staff||[]).forEach(st=>{
+    if(BURI.indexOf(st.name) >= 0 && +st.offDow !== 4){ st.offDow = 4; changed = true; }
+  });
+  const offOf = id => { const st=(d.staff||[]).find(x=>x.id===id); return (st && +st.offDow) || 0; };
+  (d.attendance||[]).forEach(a=>{
+    if(!a.date || String(a.date).slice(0,7) < OFFDOW_FROM) return;   // เดือนที่ปิดงวดแล้วห้ามแตะ
+    const off = offOf(a.staffId);
+    if(off === 0) return;
+    const want = new Date(a.date + "T00:00:00").getDay() === off;
+    if(!!a.holiday !== want){ a.holiday = want; changed = true; }
+  });
+  return changed;
+}
+
 function load(){
   const stored = persistRead();
   if(!stored) return seedDb();
@@ -407,17 +431,7 @@ function load(){
   }
   // ทีมบุรีรัมย์หยุดวันพฤหัส ตั้งแต่ ก.ย. 2569 (กติกาคุณโอ 1 ต.ค.) — ตั้งค่าให้ครั้งเดียว
   // แล้วซ่อมธง holiday ของ record ตั้งแต่ ก.ย. ที่ยังติดกติกาอาทิตย์อยู่ (ไม่แตะเดือนก่อนหน้า)
-  if(!d.__migBuriramThu){
-    const BURI = ["ปอนด์","โอ๋","ฟ้า","แมน"];
-    (d.staff||[]).forEach(st=>{ if(BURI.indexOf(st.name) >= 0) st.offDow = 4; });
-    const offOf = id => { const st=(d.staff||[]).find(x=>x.id===id); return (st && +st.offDow) || 0; };
-    (d.attendance||[]).forEach(a=>{
-      if(!a.date || String(a.date).slice(0,7) < "2026-09") return;
-      const off = offOf(a.staffId);
-      if(off !== 0) a.holiday = new Date(a.date + "T00:00:00").getDay() === off;
-    });
-    d.__migBuriramThu = 1;
-  }
+  runMigrations(d);
   // รวม record เช็คชื่อซ้ำ (วัน+คนเดียวกันมีหลายแถว — เศษจากบั๊กติ๊กเด้งรุ่นก่อน):
   // จอวาดจากแถวหนึ่งแต่บันทึกไปแก้อีกแถว → "บร เด้งไปโคราช / กดบันทึกซ้ำ OT หาย"
   // รันทุกครั้งที่เปิด (idempotent) — ผสานค่าที่ดีที่สุดเข้าแถวเดียว
@@ -1122,7 +1136,6 @@ function dayHoliday(date){
 /* ── วันหยุดประจำสัปดาห์รายคน (กติกาคุณโอ 1 ต.ค. 2569) ──
    โคราช = อาทิตย์ (เหมือนเดิม) · ทีมบุรีรัมย์ = พฤหัสบดี มีผล ก.ย. 2569 เป็นต้นไป
    เก็บที่ staff.offDow (เลขวัน 0=อา … 6=ส) แก้ได้ในฟอร์มพนักงาน · ไม่ใส่ = อาทิตย์ */
-const OFFDOW_FROM = "2026-09";        // ก่อนเดือนนี้ ทุกคนใช้กติกาเดิม (อาทิตย์) ประวัติเก่าไม่กระทบ
 function offDowOf(staffId){
   const st = db.staff.find(x=>x.id===staffId);
   const v = st && st.offDow;
