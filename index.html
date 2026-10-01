@@ -125,7 +125,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b23";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b24";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
 /* ── Supabase (เปิดใช้ 1 ก.ย. 2569) ──
@@ -405,6 +405,19 @@ function load(){
     });
     d.__migSunday1 = 1;
   }
+  // ทีมบุรีรัมย์หยุดวันพฤหัส ตั้งแต่ ก.ย. 2569 (กติกาคุณโอ 1 ต.ค.) — ตั้งค่าให้ครั้งเดียว
+  // แล้วซ่อมธง holiday ของ record ตั้งแต่ ก.ย. ที่ยังติดกติกาอาทิตย์อยู่ (ไม่แตะเดือนก่อนหน้า)
+  if(!d.__migBuriramThu){
+    const BURI = ["ปอนด์","โอ๋","ฟ้า","แมน"];
+    (d.staff||[]).forEach(st=>{ if(BURI.indexOf(st.name) >= 0) st.offDow = 4; });
+    const offOf = id => { const st=(d.staff||[]).find(x=>x.id===id); return (st && +st.offDow) || 0; };
+    (d.attendance||[]).forEach(a=>{
+      if(!a.date || String(a.date).slice(0,7) < "2026-09") return;
+      const off = offOf(a.staffId);
+      if(off !== 0) a.holiday = new Date(a.date + "T00:00:00").getDay() === off;
+    });
+    d.__migBuriramThu = 1;
+  }
   // รวม record เช็คชื่อซ้ำ (วัน+คนเดียวกันมีหลายแถว — เศษจากบั๊กติ๊กเด้งรุ่นก่อน):
   // จอวาดจากแถวหนึ่งแต่บันทึกไปแก้อีกแถว → "บร เด้งไปโคราช / กดบันทึกซ้ำ OT หาย"
   // รันทุกครั้งที่เปิด (idempotent) — ผสานค่าที่ดีที่สุดเข้าแถวเดียว
@@ -637,7 +650,8 @@ function renderStaff(){
     if(owner) r.push(peekCell("salary", s.id, baht(s.salary)), baht(s.houseAllow||0), peekCell("acct", s.id, acctStr(s)));
     r.push(
       (s.status==="inactive" ? chip("พ้นสภาพ","c-ปิด") : chip("ทำงานอยู่","c-เสร็จ"))
-        + (s.noSso ? " " + chip("ไม่หัก ปกส.","c-ใหม่") : ""),
+        + (s.noSso ? " " + chip("ไม่หัก ปกส.","c-ใหม่") : "")
+        + (offDowOf(s.id)!==0 ? " " + chip("หยุด"+TH_DOW[offDowOf(s.id)],"c-รอโอน") : ""),
       lnk(s.status==="inactive" ? "เปิดใช้งาน" : "ปิดการใช้งาน", "toggleStaffActive('"+s.id+"')")
       + lnk("แก้","openStaffForm('"+s.id+"')")
       + (owner ? lnk("ลบถาวร","delStaff('"+s.id+"')","del") : "")
@@ -658,7 +672,12 @@ function openStaffForm(id){
     + fld("รูปแบบค่าคอม", '<select class="inp" id="f-comm">'+commOpts+'</select>')
     + fld("สาขา", '<input class="inp" id="f-branch" value="'+esc(r?r.branch:db.settings.branch)+'">')
     + fld("เบอร์ภายใน", '<input class="inp" id="f-phone" value="'+esc(r?r.phoneInt:"")+'">')
-    + fld("วันเริ่มงาน", '<input class="inp" type="date" id="f-start" value="'+esc(r?r.startDate:"")+'">');
+    + fld("วันเริ่มงาน", '<input class="inp" type="date" id="f-start" value="'+esc(r?r.startDate:"")+'">')
+    + fld("วันหยุดประจำสัปดาห์", '<select class="inp" id="f-offdow">'
+        + ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"].map((n,i)=>
+            '<option value="'+i+'"'+((r?offDowOf(r.id):0)===i?" selected":"")+'>'+n+'</option>').join('')
+        + '</select><span class="sub">ทีมโคราช = อาทิตย์ · ทีมบุรีรัมย์ = พฤหัสบดี (มีผล ก.ย. 2569 เป็นต้นไป) — ทำงานวันหยุดของตัวเอง = OT ×'
+        + db.settings.otHolidayMult + '</span>');
   if(owner){
     body += fld("เงินเดือน (บาท/เดือน)",
         '<input class="inp" type="password" inputmode="numeric" id="f-salary" value="'+(r?r.salary:"")+'">'
@@ -690,6 +709,7 @@ function saveStaff(id){
   if(document.getElementById("f-bankno"))  f.bankNo     = val("f-bankno").trim();
   if(document.getElementById("f-acctname")) f.acctName  = val("f-acctname").trim();
   if(document.getElementById("f-nosso"))   f.noSso      = document.getElementById("f-nosso").checked;
+  if(document.getElementById("f-offdow"))  f.offDow     = +val("f-offdow")||0;
   if(id){ const r = db.staff.find(x=>x.id===id); if(r) Object.assign(r, f); }
   else { db.staff.unshift(Object.assign({ id:uid(), status:"active", salary:0, houseAllow:0, nationalId:"", address:"" }, f)); }
   save(); closeModal(); render();
@@ -1014,7 +1034,8 @@ function saveMonthCheckin(){
         db.attendance = db.attendance.filter(a=>a.id!==rec.id); removed++;
       }
     });
-    db.attendance.forEach(a=>{ if(a.date===d) a.holiday = holiday; });
+    // ช่อง "หยุด" ของแถว = วันหยุดร้านโคราชเท่านั้น · คนที่มีวันหยุดของตัวเอง (บุรีรัมย์) คิดแยก
+    db.attendance.forEach(a=>{ if(a.date===d) a.holiday = offDowOf(a.staffId)===0 ? holiday : staffHoliday(a.staffId, d); });
   });
   save(); closeModal(); render();
   notify("บันทึกเช็คชื่อเดือน "+beMonth(mckMonth)+" แล้ว (เพิ่ม "+added+" · เอาออก "+removed+" รายการ)");
@@ -1093,10 +1114,24 @@ function setMcMonth(v){ mcMonth = v; render(); }
 const TH_DOW = ["อา","จ","อ","พ","พฤ","ศ","ส"];
 function dowOf(d){ return new Date(d + "T00:00:00").getDay(); }
 function isSunday(d){ return dowOf(d) === 0; }
-/* ธงวันหยุดของวัน: ถ้ามี record แล้วใช้ธงจริง · ยังไม่มี = ค่าเริ่มต้นตามวันอาทิตย์ */
+/* ธงวันหยุดของวัน (ทั้งร้านโคราช): ถ้ามี record แล้วใช้ธงจริง · ยังไม่มี = ค่าเริ่มต้นตามวันอาทิตย์ */
 function dayHoliday(date){
-  const recs = db.attendance.filter(a=>a.date===date);
+  const recs = db.attendance.filter(a=>a.date===date && offDowOf(a.staffId)===0);
   return recs.length ? recs.some(r=>r.holiday) : isSunday(date);
+}
+/* ── วันหยุดประจำสัปดาห์รายคน (กติกาคุณโอ 1 ต.ค. 2569) ──
+   โคราช = อาทิตย์ (เหมือนเดิม) · ทีมบุรีรัมย์ = พฤหัสบดี มีผล ก.ย. 2569 เป็นต้นไป
+   เก็บที่ staff.offDow (เลขวัน 0=อา … 6=ส) แก้ได้ในฟอร์มพนักงาน · ไม่ใส่ = อาทิตย์ */
+const OFFDOW_FROM = "2026-09";        // ก่อนเดือนนี้ ทุกคนใช้กติกาเดิม (อาทิตย์) ประวัติเก่าไม่กระทบ
+function offDowOf(staffId){
+  const st = db.staff.find(x=>x.id===staffId);
+  const v = st && st.offDow;
+  return (v === 0 || v > 0) ? +v : 0;
+}
+/* วันนี้เป็นวันหยุดของคนนี้ไหม — ใช้เป็นค่าเริ่มต้นของธง holiday ตอนสร้าง record */
+function staffHoliday(staffId, date){
+  if(monthOf(date) < OFFDOW_FROM) return isSunday(date);
+  return dowOf(date) === offDowOf(staffId);
 }
 function mcStaff(){   // ทุกคนที่ยังทำงาน เรียง ช่าง → ผู้ช่วย → แอดมิน (รวมคนไม่รับค่าคอม เผื่อรายวัน/ประวัติ)
   const order = { "ช่าง":0, "ผู้ช่วย":1, "แอดมิน":2 };
@@ -1118,17 +1153,21 @@ function renderManualCheck(){
        : '')
     + '<span class="sub">ติ๊ก = มา · คอลัมน์ "หยุด" = วันหยุดร้าน (OT ×'+db.settings.otHolidayMult+') — '
     + '<b>วันอาทิตย์ติ๊กหยุดให้อัตโนมัติ</b> (แถวสีชมพู · เปิดพิเศษก็ติ๊กออกได้) · '
-    + 'บร = หมวยไปบุรีรัมย์ · ช่องจาง = มีเวลาเข้า-ออกจากระบบอื่น ล็อกไว้</span></div>';
+    + 'บร = หมวยไปบุรีรัมย์ · ช่องจาง = มีเวลาเข้า-ออกจากระบบอื่น ล็อกไว้<br>'
+    + '<b>แถวเหลือง = วันหยุดทีมบุรีรัมย์ (พฤหัส)</b> — ช่อง "หยุด" คุมเฉพาะทีมโคราช คนที่หยุดวันอื่นระบบคิดให้เอง</span></div>';
   let grid = '<div class="card"><table class="tbl" style="font-size:12px"><thead><tr><th>วัน</th>'
     + staff.map(s=>'<th style="padding:6px 4px;text-align:center">'+esc(s.name)
-        + '<div class="sub" style="font-size:10px">'+esc(s.role||"")+'</div></th>').join('')
+        + '<div class="sub" style="font-size:10px">'+esc(s.role||"")
+        + (offDowOf(s.id)!==0 ? ' · หยุด'+TH_DOW[offDowOf(s.id)] : '')+'</div></th>').join('')
     + '<th style="padding:6px 4px">หยุด</th></tr></thead><tbody>';
   dates.forEach(d=>{
     const day = +d.slice(8,10);
     const recs = byDay[d] || {};
     const sun = isSunday(d);
     const holiday = Object.values(recs).length ? Object.values(recs).some(r=>r.holiday) : sun;   // อาทิตย์ = หยุดอัตโนมัติ
-    const rowStyle = sun ? ' style="background:var(--danger-soft)"' : '';
+    const buriOff = p >= OFFDOW_FROM && staff.some(s=>offDowOf(s.id)===dowOf(d) && offDowOf(s.id)!==0);
+    const rowStyle = sun ? ' style="background:var(--danger-soft)"'
+                   : buriOff ? ' style="background:var(--new-soft)"' : '';
     grid += '<tr'+rowStyle+'><td style="padding:6px 8px;white-space:nowrap">'+day+' <span class="sub">'+TH_DOW[dowOf(d)]+'</span></td>'
       + staff.map(s=>{
           const r = recs[s.id];
@@ -1178,7 +1217,7 @@ function mcTick(day, staffId, on){
   const rec = db.attendance.find(a=>a.date===d && a.staffId===staffId);
   if(on && !rec){
     db.attendance.unshift({ id:uid(), staffId, date:d, timeIn:"", timeOut:"", role:s.role,
-      holiday: hEl ? hEl.checked : dayHoliday(d),
+      holiday: offDowOf(staffId)===0 && hEl ? hEl.checked : staffHoliday(staffId, d),
       branch: bEl && bEl.checked ? "บุรีรัมย์" : "" });
   } else if(!on && rec){
     if(rec.timeIn || rec.timeOut || +rec.otManual){
@@ -1206,7 +1245,7 @@ function mcbTick(day, staffId, on){
 }
 function mchTick(day, on){
   const d = mcDate(day);
-  db.attendance.forEach(a=>{ if(a.date===d) a.holiday = on; });
+  db.attendance.forEach(a=>{ if(a.date===d && offDowOf(a.staffId)===0) a.holiday = on; });   // ไม่แตะคนที่หยุดวันอื่น
   save();
 }
 
@@ -1229,7 +1268,8 @@ function applyManualGrid(p){
       const rec = db.attendance.find(a=>a.date===d && a.staffId===s.id);
       // มีบร ติ๊กอยู่ = ถือว่ามาด้วย (กันเคสติ๊ก บร แต่ลืมติ๊ก มา — ต้นเหตุ "เด้งไปโคราช")
       const come = el.checked || (bEl && bEl.checked);
-      if(come && !rec){ db.attendance.unshift({ id:uid(), staffId:s.id, date:d, timeIn:"", timeOut:"", holiday, role:s.role, branch }); added++; }
+      const hol = offDowOf(s.id)===0 ? holiday : staffHoliday(s.id, d);   // ทีมบุรีรัมย์ถือวันหยุดของตัวเอง
+      if(come && !rec){ db.attendance.unshift({ id:uid(), staffId:s.id, date:d, timeIn:"", timeOut:"", holiday:hol, role:s.role, branch }); added++; }
       // ห้ามลบ record ที่มีเวลาเข้า-ออก หรือมี OT (มี OT = ถือว่ามาแน่นอน)
       else if(!come && rec && !rec.timeIn && !rec.timeOut && !(+rec.otManual)){ db.attendance = db.attendance.filter(a=>a.id!==rec.id); removed++; }
       else if(come && rec){ rec.branch = branch; }
@@ -1255,7 +1295,7 @@ function addManualOt(){
   const st = db.staff.find(s=>s.id===staffId);
   if(!rec){   // ยังไม่ได้เช็คชื่อวันนั้น → ถือว่ามา แล้วใส่ OT ให้เลย (อาทิตย์ = วันหยุด OT ×2 อัตโนมัติ)
     rec = { id:uid(), staffId, date, timeIn:"", timeOut:"", role: st?st.role:"",
-            holiday: dayHoliday(date), branch:"" };
+            holiday: staffHoliday(staffId, date), branch:"" };
     db.attendance.unshift(rec);
   }
   rec.otManual = hrs;
