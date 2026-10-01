@@ -125,7 +125,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b28";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b29";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";
 const OFFDOW_FROM = "2026-09";   // วันหยุดรายคน (ทีมบุรีรัมย์=พฤหัส) มีผลตั้งแต่เดือนนี้ · ก่อนหน้านี้ทุกคนหยุดอาทิตย์   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
@@ -1892,7 +1892,10 @@ function calcLine(staff, period){
   return { staffId:staff.id, name:staff.name, base, house, comm,
            otNHours:otN, otNPay, otHHours:otH, otHPay, sso, tax, advance, net };
 }
-function payStaff(){ return db.staff.filter(s => (+s.salary||0) > 0 && s.status!=="inactive"); }
+/* ทุกคนที่ยังทำงานเข้างวดหมด — คนที่ยังไม่ได้ใส่เงินเดือนต้อง "เห็นแล้วรู้ว่าต้องกรอก"
+   ไม่ใช่หายไปเงียบๆ (คุณโอเจอเอง 1 ต.ค.: "โอ๋ไม่โชว์ในหน้าเงินเดือนหรอ")
+   สำคัญกว่านั้น: คนเงินเดือน 0 แต่มีค่าคอม/OT เคยตกหล่นทั้งก้อน */
+function payStaff(){ return db.staff.filter(s => s.status!=="inactive"); }
 function payLines(p){ return p.closed ? p.lines : payStaff().map(s=>calcLine(s, p.period)); }
 
 /* หน้าเงินเดือนแบบเต็มหน้า (คุณโอขอ 1 ก.ย. 2569): เลือกเดือนบนหัวเหมือนหน้าค่าคอม
@@ -1933,8 +1936,10 @@ function renderPayrolls(){
   const lines = closed ? rec.lines : payStaff().map(s=>calcLine(s, p));
   if(!lines.length) return h + empty("ยังไม่มีพนักงานที่มีเงินเดือนในงวดนี้ — ใส่เงินเดือนในแท็บพนักงานก่อน");
   const sum = k => lines.reduce((t,l)=>t+(+l[k]||0),0);
+  const nNoSalary = lines.filter(l=>(+l.base||0)===0).length;
   h += '<div class="kpis">'
-    + '<div class="kpi"><span class="lbl">จำนวนคน</span><b>'+lines.length+'</b></div>'
+    + '<div class="kpi"><span class="lbl">จำนวนคน</span><b>'+lines.length+'</b>'
+    + (nNoSalary ? '<span class="sub" style="color:var(--danger)">ยังไม่ใส่เงินเดือน '+nNoSalary+' คน</span>' : '') + '</div>'
     + '<div class="kpi"><span class="lbl">ค่าคอมรวม</span><b>'+baht(sum("comm"))+'</b></div>'
     + '<div class="kpi"><span class="lbl">รวมก่อนหักเบิก</span><b>'+baht(sum("net")+sum("advance"))+'</b></div>'
     + '<div class="kpi"><span class="lbl">หักเบิกรวม</span><b>'+baht(sum("advance"))+'</b></div>'
@@ -1945,7 +1950,8 @@ function renderPayrolls(){
   const rows = lines.map(l=>{
     const st = db.staff.find(x=>x.id===l.staffId);
     return [
-      esc(l.name) + (st && st.noSso ? ' <span class="chip c-ใหม่">ไม่หัก ปกส.</span>' : ''),
+      esc(l.name) + (st && st.noSso ? ' <span class="chip c-ใหม่">ไม่หัก ปกส.</span>' : '')
+        + ((+l.base||0) === 0 ? ' <span class="chip c-ปัด">ยังไม่ใส่เงินเดือน</span>' : ''),
       baht(l.base), baht(l.house||0), baht(l.comm||0),
       ((l.otNHours||0)+(l.otHHours||0)).toFixed(1),
       baht(Math.round((l.otNPay||0)+(l.otHPay||0))),
