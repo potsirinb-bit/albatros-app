@@ -125,7 +125,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b26";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b27";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";
 const OFFDOW_FROM = "2026-09";   // วันหยุดรายคน (ทีมบุรีรัมย์=พฤหัส) มีผลตั้งแต่เดือนนี้ · ก่อนหน้านี้ทุกคนหยุดอาทิตย์   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
@@ -1653,6 +1653,28 @@ registerModule({ key:"jobs", ic:"🚗", label:"งานรถ", render: renderJ
    - ผู้ช่วยพิเศษ (percent): ได้ % ยอดขายทั้งวัน (ไม่ผูกเช็คชื่อ — ก.พ. ชีตจ่ายทั้งที่เช็คชื่อว่าง)
      และ**ไม่นับเป็นตัวหาร**ฝั่งผู้ช่วย (คอลัมน์ "ผู้ช่วยมา" ของชีต Commission ไม่รวมหมวย)
    ============================================================ */
+/* ── ลาเกินเพดาน = ตัดค่าคอมทั้งเดือน (กติกาคุณโอ 1 ต.ค. 2569) ──
+   นับ "ลา" จากกริดเช็คชื่อ: วันที่ร้านเปิด (มีคนมาอย่างน้อย 1 คน) แต่เขาไม่มี record
+   ไม่นับวันหยุดประจำของเขาเอง (โคราช=อาทิตย์ · บุรีรัมย์=พฤหัส)
+   คนที่เกิน → staffDayComm คืน 0 และ "หายจากตัวหารทุกวันในเดือนนั้น รวมวันที่เขามา"
+   (คุณโอเลือกเอง: เงินกองกลางตกถึงคนที่มาจริงเต็มๆ ไม่หายไปเฉยๆ) */
+const LEAVE_LIMIT = 4;
+function noCommSet(period){
+  const open = {}, by = {};
+  db.attendance.forEach(a=>{
+    if(monthOf(a.date) !== period) return;
+    open[a.date] = true;
+    (by[a.staffId] = by[a.staffId] || {})[a.date] = true;
+  });
+  const days = Object.keys(open), out = {};
+  db.staff.forEach(st=>{
+    const off = offDowOf(st.id), mine = by[st.id] || {};
+    const miss = days.filter(d => dowOf(d) !== off && !mine[d]).length;
+    if(miss > LEAVE_LIMIT) out[st.id] = miss;   // เก็บจำนวนวันไว้โชว์ด้วย
+  });
+  return out;
+}
+
 function dayCommission(date){
   const s = db.settings.rates;
   const jobs = db.jobs.filter(j=>j.date===date);   // ทุกสาขารวมกอง (กติกาคุณโอ: รถสองสาขารวมกัน สูตรเดิม)
@@ -1664,9 +1686,10 @@ function dayCommission(date){
   db.attendance.forEach(a=>{ if(a.date===date){ present[a.staffId] = true; if(a.role) roleOf[a.staffId] = a.role; } });
   const dayRole = st => roleOf[st.id] || st.role;
   // ตัวหาร: เฉพาะคนในระบบกองกลาง (percent/none ไม่นับ — ตรงคอลัมน์ ช่างมา/ผู้ช่วยมา ของชีต)
-  const techs = db.staff.filter(st=>present[st.id] && dayRole(st)==="ช่าง"
+  const noComm = noCommSet(monthOf(date));   // ลาเกินเพดาน = ตัดค่าคอม + หายจากตัวหารทั้งเดือน
+  const techs = db.staff.filter(st=>present[st.id] && !noComm[st.id] && dayRole(st)==="ช่าง"
                                  && (st.commissionRole==="pool" || st.commissionRole==="special"));
-  const assts = db.staff.filter(st=>present[st.id] && dayRole(st)==="ผู้ช่วย" && st.commissionRole==="pool");
+  const assts = db.staff.filter(st=>present[st.id] && !noComm[st.id] && dayRole(st)==="ผู้ช่วย" && st.commissionRole==="pool");
   const sh = sharesFor(date);
   const techEach = techs.length ? pool*sh.tech/techs.length : 0;
   const asstEach = assts.length ? pool*sh.asst/assts.length : 0;
@@ -1677,15 +1700,16 @@ function dayCommission(date){
   //   มีส่วนร่วมทุกคันรวมโคราชด้วย (ถือว่าเสียสละไปช่วยสาขา) = ตัวหารฝั่งผู้ช่วย +1 แล้วรับเท่าคนอื่นเป๊ะ
   const away = {};
   db.attendance.forEach(a=>{ if(a.date===date && a.branch==="บุรีรัมย์") away[a.staffId] = true; });
-  const awayCount = db.staff.filter(st=>present[st.id] && st.commissionRole==="percent" && away[st.id]).length;
+  const awayCount = db.staff.filter(st=>present[st.id] && !noComm[st.id] && st.commissionRole==="percent" && away[st.id]).length;
   const asstDivisor = assts.length + awayCount;
   const asstEachAll = asstDivisor ? pool*sh.asst/asstDivisor : 0;
   // 1% ของ percent คิดจากยอดโคราชเท่านั้น (คุณโอเคาะ 1 ก.ย.) — งานที่ไม่ติดสาขาบุรีรัมย์นับเป็นโคราช
   const salesKorat = jobs.filter(j=>j.branch!=="บุรีรัมย์").reduce((t,j)=>t+(+j.amount||0),0);
   return { date, sales, salesKorat, pool, techEach, asstEach:asstEachAll, nTech:techs.length, nAsst:asstDivisor,
-           special, present, roleOf, away };
+           special, present, roleOf, away, noComm };
 }
 function staffDayComm(st, dc){
+  if(dc.noComm && dc.noComm[st.id]) return 0;   // ลาเกิน LEAVE_LIMIT วันในเดือนนั้น = ไม่ได้ค่าคอมทุกรูปแบบ
   if(st.commissionRole==="special") return dc.special[st.id] || 0;                 // คอมรายคันตามงานที่ทำ
   if(st.commissionRole==="percent"){
     // สองก้อนบวกกัน ไม่ใช่สลับกัน (คุณโอแก้ 1 ต.ค. 2569 — เดิมวันไป บร งด 1% ทำให้ยอดเดือนขาด)
@@ -1741,10 +1765,12 @@ function renderCommission(){
     + '<div class="kpi"><span class="lbl">กองกลางรวม (สองสาขารวมกองเดียว)</span><b>'+baht(pool)+'</b>'+cSub("pool")+'</div>'
     + '<div class="kpi"><span class="lbl">ค่าคอมจ่ายรวม</span><b>'+baht(commTotal)+'</b></div></div>';
 
-  h += '<div class="sub">สรุปต่อคน (เอาไปเข้างวดเงินเดือนอัตโนมัติ)</div>';
+  h += '<div class="sub">สรุปต่อคน (เอาไปเข้างวดเงินเดือนอัตโนมัติ) · <b>ลาเกิน '+LEAVE_LIMIT+' วันในเดือน = ไม่ได้ค่าคอม และไม่นับเป็นตัวหารทั้งเดือน</b></div>';
+  const noCommM = noCommSet(p);
   h += tbl([{t:"พนักงาน"},{t:"ตำแหน่ง"},{t:"รูปแบบ"},{t:"ค่าคอมเดือนนี้",c:"num"},{c:"act"}],
     perStaff.slice().sort((a,b)=>b.comm-a.comm).map(x=>[
-      esc(x.st.name), esc(x.st.role||"—"), esc(COMM_ROLES[x.st.commissionRole]||"—"), "<b>"+baht(x.comm)+"</b>",
+      esc(x.st.name) + (noCommM[x.st.id] ? ' <span class="chip c-ปัด">ลา '+noCommM[x.st.id]+' วัน — ตัดค่าคอม</span>' : ''),
+      esc(x.st.role||"—"), esc(COMM_ROLES[x.st.commissionRole]||"—"), "<b>"+baht(x.comm)+"</b>",
       x.st.commissionRole==="special" ? lnk("รายคัน","openSpecialDetail('"+x.st.id+"','"+p+"')")
       : x.st.commissionRole==="percent" ? lnk("รายวัน","openPercentDetail('"+x.st.id+"','"+p+"')") : ""
     ]));
@@ -1910,10 +1936,12 @@ function renderPayrolls(){
   h += '<div class="kpis">'
     + '<div class="kpi"><span class="lbl">จำนวนคน</span><b>'+lines.length+'</b></div>'
     + '<div class="kpi"><span class="lbl">ค่าคอมรวม</span><b>'+baht(sum("comm"))+'</b></div>'
+    + '<div class="kpi"><span class="lbl">รวมก่อนหักเบิก</span><b>'+baht(sum("net")+sum("advance"))+'</b></div>'
     + '<div class="kpi"><span class="lbl">หักเบิกรวม</span><b>'+baht(sum("advance"))+'</b></div>'
     + '<div class="kpi big-net"><span class="lbl">ยอดสุทธิจ่ายรวม</span><b>'+baht(sum("net"))+'</b></div></div>';
   const cols = [{t:"ชื่อ"},{t:"ฐาน",c:"num"},{t:"ค่าบ้าน",c:"num"},{t:"ค่าคอม",c:"num"},
-                {t:"OT ชม.",c:"num"},{t:"OT บาท",c:"num"},{t:"หัก ปกส.",c:"num"},{t:"หักเบิก",c:"num"},{t:"สุทธิ",c:"num"},{c:"act"}];
+                {t:"OT ชม.",c:"num"},{t:"OT บาท",c:"num"},{t:"หัก ปกส.",c:"num"},
+                {t:"ก่อนหักเบิก",c:"num"},{t:"หักเบิก",c:"num"},{t:"สุทธิ",c:"num"},{c:"act"}];
   const rows = lines.map(l=>{
     const st = db.staff.find(x=>x.id===l.staffId);
     return [
@@ -1921,7 +1949,9 @@ function renderPayrolls(){
       baht(l.base), baht(l.house||0), baht(l.comm||0),
       ((l.otNHours||0)+(l.otHHours||0)).toFixed(1),
       baht(Math.round((l.otNPay||0)+(l.otHPay||0))),
-      baht(Math.round(l.sso)), baht(l.advance||0),
+      baht(Math.round(l.sso)),
+      baht(Math.round((+l.net||0) + (+l.advance||0))),   // ยอดที่ได้ถ้าไม่มีเบิก/ยืม
+      baht(l.advance||0),
       "<b>"+baht(Math.round(l.net))+"</b>",
       closed ? lnk("พิมพ์สลิป","printSlip('"+rec.id+"','"+l.staffId+"')") : ""
     ];
@@ -1999,6 +2029,7 @@ function printSlip(payrollId, staffId){
     + row("OT ธรรมดา ("+(l.otNHours||0).toFixed(1)+" ชม. × "+p.otMult+")", baht(l.otNPay||0)+" บาท")
     + row("OT วันหยุด ("+(l.otHHours||0).toFixed(1)+" ชม. × "+p.otHolidayMult+")", baht(l.otHPay||0)+" บาท")
     + row("หัก ประกันสังคม ("+(p.ssoRate*100)+"% เพดาน "+p.ssoCap+")", "-"+baht(l.sso)+" บาท")
+    + row("<b>รวมก่อนหักเบิก</b>", "<b>"+baht(Math.round((+l.net||0)+(+l.advance||0)))+" บาท</b>")
     + row("หัก เบิกล่วงหน้า", "-"+baht(l.advance||0)+" บาท")
     + row("หัก ภาษี ณ ที่จ่าย", "-"+baht(l.tax)+" บาท")
     + '<tr class="tot"><td>ยอดสุทธิ</td><td>'+baht(l.net)+' บาท</td></tr>'
