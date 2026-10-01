@@ -125,7 +125,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b22";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b23";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
 /* ── Supabase (เปิดใช้ 1 ก.ย. 2569) ──
@@ -1113,6 +1113,9 @@ function renderManualCheck(){
   h += '<div class="bar"><span class="lbl">เดือน</span>'
     + '<input class="inp" type="month" value="'+esc(p)+'" onchange="setMcMonth(this.value)">'
     + '<button class="btn" onclick="saveManualCheck(\''+p+'\')">💾 บันทึกทั้งเดือน</button>'
+    + (lineRecsOf(p).length
+       ? '<button class="btn ghost" onclick="clearLineMonth(\''+p+'\')">🧹 ล้างเช็คชื่อจากไลน์ ('+lineRecsOf(p).length+' แถว)</button>'
+       : '')
     + '<span class="sub">ติ๊ก = มา · คอลัมน์ "หยุด" = วันหยุดร้าน (OT ×'+db.settings.otHolidayMult+') — '
     + '<b>วันอาทิตย์ติ๊กหยุดให้อัตโนมัติ</b> (แถวสีชมพู · เปิดพิเศษก็ติ๊กออกได้) · '
     + 'บร = หมวยไปบุรีรัมย์ · ช่องจาง = มีเวลาเข้า-ออกจากระบบอื่น ล็อกไว้</span></div>';
@@ -2537,6 +2540,40 @@ function resetLineBind(staffId, name){
       openLineBind();
     }catch(e){ notify("รีเซ็ตไม่สำเร็จ: "+(e.message||e)); }
   }, "รีเซ็ต");
+}
+/* ============================================================
+   ล้างเช็คชื่อที่มาจากไลน์ (1 ต.ค. 2569)
+   เคสจริง: พนักงานกดลิงก์ส่วนตัวแล้วเจอแท็บ "ลงเวลา" เป็นแท็บแรก เลยลงเวลากันเองทั้งที่
+   คุณโอยังไม่ประกาศเปิดใช้ → ก.ย. มีเช็คชื่อ+OT โผล่เอง และลงไม่ครบทุกคน = ตัวหารกองกลางเพี้ยน
+   ปุ่มนี้ลบเฉพาะแถวธง source:"line" ของเดือนนั้น — แถวที่ติ๊กเองไม่แตะ
+   ============================================================ */
+function lineRecsOf(period){
+  return (db.attendance||[]).filter(a => a.source==="line" && monthOf(a.date)===period);
+}
+function clearLineMonth(period){
+  const recs = lineRecsOf(period);
+  if(!recs.length){ notify("เดือนนี้ไม่มีเช็คชื่อจากไลน์"); return; }
+  const byName = {};
+  recs.forEach(a=>{ const n = staffName(a.staffId); byName[n] = (byName[n]||0)+1; });
+  const otTotal = recs.reduce((t,a)=>{ const o=otSplit(a); return t+o.n+o.h; }, 0);
+  const days = Object.keys(recs.reduce((m,a)=>{ m[a.date]=1; return m; },{})).length;
+  const list = Object.keys(byName).sort((a,b)=>byName[b]-byName[a])
+    .map(n=>n+" "+byName[n]+" วัน").join(" · ");
+  openModal("ล้างเช็คชื่อจากไลน์ — "+beMonth(period),
+    '<div class="note">ลบเฉพาะแถวที่พนักงานลงเวลาเองผ่านไลน์ · แถวที่คุณติ๊กเองในหน้านี้ <b>ไม่ถูกแตะ</b></div>'
+    + '<div class="kpis">'
+    + '<div class="kpi"><span class="lbl">แถวที่จะลบ</span><b>'+recs.length+'</b></div>'
+    + '<div class="kpi"><span class="lbl">กี่วัน</span><b>'+days+'</b></div>'
+    + '<div class="kpi"><span class="lbl">OT ที่จะหายไป</span><b>'+otTotal.toFixed(1)+' ชม.</b></div></div>'
+    + '<div class="sub">'+esc(list)+'</div>'
+    + '<div class="mfoot"><button class="btn ghost" onclick="closeModal()">ยกเลิก</button>'
+    + '<button class="btn" onclick="doClearLineMonth(\''+period+'\')">ล้างทิ้ง</button></div>');
+}
+function doClearLineMonth(period){
+  const n = lineRecsOf(period).length;
+  db.attendance = (db.attendance||[]).filter(a => !(a.source==="line" && monthOf(a.date)===period));
+  save(); closeModal(); render();
+  notify("ล้างแล้ว "+n+" แถว — ติ๊กเองในตารางได้ตามปกติ");
 }
 </script>
 </body>
