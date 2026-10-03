@@ -98,6 +98,17 @@ button{font:inherit;color:inherit}
 .slip td:last-child{text-align:right;font-variant-numeric:tabular-nums}
 .slip .tot td{font-weight:700;font-size:16px;border-top:2px solid #000;border-bottom:0}
 .slip .foot{margin-top:9mm;font-size:12px;color:#555}
+.rep{width:180mm;padding:6mm 0;color:#000}
+.rep h2{margin:0 0 1mm;font-size:19px}
+.rep .meta{font-size:12.5px;color:#444;margin-bottom:5mm}
+.rep .sum{display:flex;gap:8mm;margin-bottom:5mm;font-size:13px}
+.rep .sum b{font-size:16px;display:block}
+.rep table{width:100%;border-collapse:collapse;font-size:12.5px}
+.rep th{text-align:left;border-bottom:1.5px solid #000;padding:2.4mm 1mm;font-size:12px}
+.rep td{padding:2.2mm 1mm;border-bottom:1px solid #e0e0e0}
+.rep .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rep tr.tot td{font-weight:700;font-size:14px;border-top:1.5px solid #000;border-bottom:0}
+.rep .foot{margin-top:7mm;font-size:11px;color:#555}
 
 @media print{
   @page{size:A4;margin:14mm}
@@ -125,7 +136,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b29";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b30";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";
 const OFFDOW_FROM = "2026-09";   // วันหยุดรายคน (ทีมบุรีรัมย์=พฤหัส) มีผลตั้งแต่เดือนนี้ · ก่อนหน้านี้ทุกคนหยุดอาทิตย์   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
@@ -1851,6 +1862,7 @@ function openSpecialDetail(staffId, period){
       chip(j.branch==="บุรีรัมย์" ? "บุรีรัมย์" : "โคราช", j.branch==="บุรีรัมย์" ? "c-ใหม่" : "c-เสร็จ"),
       "<b>"+baht(jobSpecial(j))+"</b>"
     ]));
+  body = '<button class="btn ghost" style="margin-bottom:10px" onclick="printSpecialDetail(\''+staffId+'\',\''+period+'\')">🖨 พิมพ์ / บันทึกเป็น PDF</button>' + body;
   openModal("รายคัน — "+esc(st.name)+" · "+beMonth(period)+" ("+cars.length+" คัน รวม "+baht(cars.reduce((t,j)=>t+jobSpecial(j),0))+" บาท)", body);
 }
 function exportCommission(p){
@@ -2667,6 +2679,46 @@ function doClearLineMonth(period){
   db.attendance = (db.attendance||[]).filter(a => !(a.source==="line" && monthOf(a.date)===period));
   save(); closeModal(); render();
   notify("ล้างแล้ว "+n+" แถว — ติ๊กเองในตารางได้ตามปกติ");
+}
+/* ============================================================
+   รายงานรายคันของช่างพิเศษ → พิมพ์ / บันทึกเป็น PDF (คุณโอขอ 3 ต.ค. 2569)
+   ใช้แพตเทิร์นเดิมของโปรเจกต์: เรนเดอร์ลง #print แล้ว window.print()
+   (ในกล่องพิมพ์ของเบราว์เซอร์ เลือกปลายทาง "Save as PDF" ได้เลย)
+   ============================================================ */
+function printSpecialDetail(staffId, period){
+  const st = db.staff.find(x=>x.id===staffId); if(!st) return;
+  const cars = db.jobs
+    .filter(j=>j.techId===staffId && monthOf(j.date)===period && jobSpecial(j)>0)
+    .sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  if(!cars.length){ notify("เดือนนี้ยังไม่มีคันที่เกิดคอมพิเศษ"); return; }
+  const byBranch = {};
+  cars.forEach(j=>{
+    const b = j.branch==="บุรีรัมย์" ? "บุรีรัมย์" : "โคราช";
+    byBranch[b] = byBranch[b] || { n:0, comm:0 };
+    byBranch[b].n++; byBranch[b].comm += jobSpecial(j);
+  });
+  const total = cars.reduce((t,j)=>t+jobSpecial(j),0);
+  document.getElementById("print").innerHTML =
+    '<div class="rep"><h2>ค่าคอมรายคัน — '+esc(st.name)+'</h2>'
+    + '<div class="meta">Albatros · งวด '+beMonth(period)+' · ออกรายงาน '+thDate(todayStr())+'</div>'
+    + '<div class="sum">'
+    +   BRANCHES.filter(b=>byBranch[b]).map(b=>
+          '<div>'+esc(b)+'<b>'+baht(byBranch[b].comm)+' บาท</b>'+byBranch[b].n+' คัน</div>').join('')
+    +   '<div>รวมทั้งหมด<b>'+baht(total)+' บาท</b>'+cars.length+' คัน</div>'
+    + '</div>'
+    + '<table><thead><tr><th>วันที่</th><th>ทะเบียน / รุ่น</th><th>งาน</th><th>สาขา</th><th class="n">คอม</th></tr></thead><tbody>'
+    + cars.map(j=>'<tr><td>'+thDate(j.date)+'</td>'
+        + '<td>'+esc(((j.plate||"")+" "+(j.carModel||"")).trim() || "—")+'</td>'
+        + '<td>'+esc(j.program + (j.filmSet && j.filmSet!=="—" ? " + "+j.filmSet : ""))+'</td>'
+        + '<td>'+esc(j.branch==="บุรีรัมย์" ? "บุรีรัมย์" : "โคราช")+'</td>'
+        + '<td class="n">'+baht(jobSpecial(j))+'</td></tr>').join('')
+    + '<tr class="tot"><td colspan="4">รวม '+cars.length+' คัน</td><td class="n">'+baht(total)+' บาท</td></tr>'
+    + '</tbody></table>'
+    + '<div class="foot">'+esc(RATE_NOTE)+' · เอกสารนี้ออกจากระบบช่วยคำนวณ ไม่ใช่คำแนะนำทางภาษี</div></div>';
+  document.body.classList.add("printing");
+  window.print();
+  document.body.classList.remove("printing");
+  document.getElementById("print").innerHTML = "";
 }
 </script>
 </body>
