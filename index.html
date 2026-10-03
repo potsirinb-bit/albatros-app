@@ -136,7 +136,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b30";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b32";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";
 const OFFDOW_FROM = "2026-09";   // วันหยุดรายคน (ทีมบุรีรัมย์=พฤหัส) มีผลตั้งแต่เดือนนี้ · ก่อนหน้านี้ทุกคนหยุดอาทิตย์   // v6: +ทีมบุรีรัมย์ (พี่ต๋อม/โอ๋/ฟ้า) · v5: 30/70+หมวยสองสาขา · v4: role snapshot · v3: บัญชี · v2: กติกาชีตจริง
 
@@ -1429,6 +1429,7 @@ function renderJobs(){
     + '<button class="btn" onclick="saveJobsVersion()">💾 บันทึกเวอร์ชันนี้</button>'
     + (db.jobsBackup ? '<button class="btn ghost" onclick="restoreJobsVersion()">↩ ย้อนกลับ ('+esc(db.jobsBackup.at)+')</button>' : '')
     + '<button class="btn ghost" onclick="saveVerifyJobs(\''+p+'\')">☁️ ตรวจกับ cloud</button>'
+    + (filmFixList(p).length ? '<button class="btn ghost" onclick="openFilmFix(\''+p+'\')">🔧 ซ่อมงานนำเข้า ('+filmFixList(p).length+' คัน)</button>' : '')
     + '<span class="sub">'+esc(syncStatusText())+'</span></div>';
   const list = db.jobs.filter(j=>monthOf(j.date)===p);
   const sales = list.reduce((t,j)=>t+(+j.amount||0),0);
@@ -1549,6 +1550,35 @@ function treeParseDate(dt){
   }
   return "";
 }
+/* แกะ "ชุดฟิล์ม" จากข้อความช่องบริการของแอป Tree (แก้ 3 ต.ค. 2569 ตามที่คุณโอทัก)
+   ① ฟิล์มรอบคัน/เต็มคัน/ทั้งคัน = เหมา — Tree เขียนไม่เหมือนกัน ต้องรับทุกคำ
+      (เดิมจับแค่ "ฟิล์มเต็มคัน" → คันฟิล์มรอบคันเลยหลุด ไม่ได้คอม 1,200 เลยสักคัน)
+   ② Set ให้เอา "ตัวสุดท้าย" เสมอ — Tree ใส่มาหมดทั้งชุดเคลือบและชุดฟิล์ม
+      เช่น "Graphene High Gloss 2Y + Set A-Blue, ฟิล์ม Set B - Blue" = SetB ไม่ใช่ SetA
+      (เดิมใช้ .match ตัวแรก → ได้ A ผิดทุกคันที่ชื่อโปรแกรมมี Set ติดมาด้วย) */
+function treeFilmSet(svc){
+  const txt = String(svc||"");
+  if(/ฟิล์ม\s*(เต็ม|รอบ|ทั้ง)\s*คัน/.test(txt) || /(เต็ม|รอบ|ทั้ง)คัน/.test(txt)) return "ฟิล์มเต็มคัน";
+  const all = txt.toLowerCase().match(/set\s*-?\s*([abc])\b/g);
+  if(!all || !all.length) return "—";
+  const last = all[all.length-1].match(/([abc])\b/);   // ตัวสุดท้าย = ชุดฟิล์มจริง
+  return last ? "Set" + last[1].toUpperCase() : "—";
+}
+/* แกะโปรแกรมเคลือบ + ชุดฟิล์ม จากข้อความใบงานพร้อมกัน (ใช้ทั้งตอนนำเข้าและตอนซ่อม)
+   ⚠️ คันฟิล์มเต็มคัน = แพ็กเกจที่เคลือบ Resin ให้ด้วย (กติกาคุณโอ 3 ต.ค. 2569)
+      ถ้าข้อความไม่ได้ระบุโปรแกรมไว้ ให้ถือเป็น SuperResin — ไม่งั้นกองกลางขาดส่วนเคลือบไป
+      (หม่าวยังได้เหมา 1,200 เท่าเดิม ไม่เปลี่ยน) */
+function treeParseService(svc){
+  const txt = String(svc||""), low = txt.toLowerCase();
+  let program = "อื่นๆ";
+  if(low.indexOf("ceramic")>=0) program = "Ceramic+";
+  if(low.indexOf("graphene")>=0) program = "Graphene";
+  if(low.indexOf("super")>=0 || /\bresin\b/.test(low)) program = "SuperResin";
+  const filmSet = treeFilmSet(txt);
+  if(filmSet === "ฟิล์มเต็มคัน" && program === "อื่นๆ") program = "SuperResin";
+  return { program, filmSet };
+}
+
 function treeMapRow(o, branch, from){
   if(String(o["สถานะใบงาน"]||"").indexOf("ยกเลิก")>=0) return null;
   let date = treeParseDate(o["เวลาเข้าใช้บริการ"]);
@@ -1560,14 +1590,7 @@ function treeMapRow(o, branch, from){
   }
   if(!date) return null;
   const svc = String(o["บริการ"]||"").trim();
-  const s = svc.toLowerCase();
-  let program = "อื่นๆ";
-  if(s.indexOf("ceramic")>=0) program = "Ceramic+";
-  if(s.indexOf("graphene")>=0) program = "Graphene";
-  if(s.indexOf("super")>=0) program = "SuperResin";
-  let filmSet = "—";
-  if(svc.indexOf("ฟิล์มเต็มคัน")>=0) filmSet = "ฟิล์มเต็มคัน";
-  else { const sm = s.match(/set\s*-?\s*([abc])/); if(sm) filmSet = "Set" + sm[1].toUpperCase(); }
+  const { program, filmSet } = treeParseService(svc);
   const money = v => +String(v||"0").replace(/[",]/g,"")||0;
   // ยอดขาย = "ราคารวม" ของทุกใบตรงๆ (คุณโอยืนยัน 1 ก.ย.: ต้องเท่ากับผลรวมใน CSV เป๊ะ —
   // ใบเงินมัดจำนับของมันเอง ใบงานจริงนับเต็มตามราคารวม ห้ามหักมัดจำออก)
@@ -2719,6 +2742,54 @@ function printSpecialDetail(staffId, period){
   window.print();
   document.body.classList.remove("printing");
   document.getElementById("print").innerHTML = "";
+}
+/* ============================================================
+   ซ่อมชุดฟิล์มของงานที่นำเข้าไปแล้ว (3 ต.ค. 2569)
+   ตัวแกะข้อความเดิมอ่าน Set ผิด (เอาตัวแรกแทนตัวสุดท้าย) และไม่รู้จัก "ฟิล์มรอบคัน"
+   แถวที่นำเข้าเก็บข้อความใบงานไว้ใน j.note อยู่แล้ว → แกะใหม่ได้เลย ไม่ต้องนำเข้าไฟล์ซ้ำ
+   (นำเข้าซ้ำเสี่ยงทับสาขาบุรีรัมย์ที่ติดเองไว้)
+   ============================================================ */
+function filmFixList(period){
+  return db.jobs.filter(j=>{
+    if(monthOf(j.date)!==period || !j.note) return false;
+    const w = treeParseService(j.note);
+    return w.filmSet !== (j.filmSet || "—") || w.program !== (j.program || "อื่นๆ");
+  });
+}
+function openFilmFix(period){
+  const list = filmFixList(period);
+  if(!list.length){ notify("เดือนนี้ชุดฟิล์มถูกต้องหมดแล้ว"); return; }
+  let before = 0, after = 0;
+  const rows = list.map(j=>{
+    const w = treeParseService(j.note);
+    const nj = Object.assign({}, j, w);
+    const b = jobSpecial(j) + jobPool(j), a = jobSpecial(nj) + jobPool(nj);
+    before += b; after += a;
+    return [ thDate(j.date),
+      esc(((j.plate||"")+" "+(j.carModel||"")).trim() || "—"),
+      '<span class="sub">'+esc(String(j.note).slice(0,60))+'</span>',
+      (w.program !== (j.program||"อื่นๆ") ? esc(j.program||"—")+" → <b>"+esc(w.program)+"</b><br>" : "")
+        + (w.filmSet !== (j.filmSet||"—") ? esc(j.filmSet||"—")+" → <b>"+esc(w.filmSet)+"</b>" : ""),
+      '<span class="sub">กอง</span> '+baht(jobPool(j))+" → <b>"+baht(jobPool(nj))+"</b><br>"
+        + '<span class="sub">หม่าว</span> '+baht(jobSpecial(j))+" → <b>"+baht(jobSpecial(nj))+"</b>" ];
+  });
+  openModal("ซ่อมงานที่นำเข้า — " + beMonth(period),
+    '<div class="note">แกะโปรแกรม+ชุดฟิล์มใหม่จากข้อความใบงานเดิม (ไม่ต้องนำเข้าไฟล์ซ้ำ · สาขาที่ติดเองไว้ไม่ถูกแตะ)<br>'
+    + 'กติกาใหม่: ฟิล์ม<b>รอบคัน/เต็มคัน</b>นับเป็นเหมา · <b>Set เอาตัวสุดท้าย</b>ในข้อความ · '
+    + 'คันฟิล์มเต็มคัน<b>ถือว่าเคลือบ Resin ด้วย</b> กองกลางได้ส่วนเคลือบเพิ่ม</div>'
+    + '<div class="kpis"><div class="kpi"><span class="lbl">คันที่จะแก้</span><b>'+list.length+'</b></div>'
+    + '<div class="kpi"><span class="lbl">กอง+หม่าว เดิม</span><b>'+baht(before)+'</b></div>'
+    + '<div class="kpi hot"><span class="lbl">หลังซ่อม</span><b>'+baht(after)+'</b>'
+    + '<span class="sub">'+(after>=before?"+":"")+baht(after-before)+'</span></div></div>'
+    + tbl([{t:"วันที่"},{t:"รถ"},{t:"ข้อความใบงาน"},{t:"แก้เป็น"},{t:"ค่าคอม"}], rows)
+    + '<div class="mfoot"><button class="btn ghost" onclick="closeModal()">ยกเลิก</button>'
+    + '<button class="btn" onclick="doFilmFix(\''+period+'\')">ซ่อมทั้งหมด</button></div>');
+}
+function doFilmFix(period){
+  const list = filmFixList(period);
+  list.forEach(j=>{ const w = treeParseService(j.note); j.program = w.program; j.filmSet = w.filmSet; });
+  save(); closeModal(); render();
+  notify("ซ่อมชุดฟิล์มแล้ว " + list.length + " คัน — ค่าคอมคิดใหม่ให้อัตโนมัติ");
 }
 </script>
 </body>
