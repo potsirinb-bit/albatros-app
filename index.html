@@ -136,7 +136,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b33";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b34";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";
 const OFFDOW_FROM = "2026-09";   /* วันหยุดรายคน */
 /* คันฟิล์มเต็มคัน ตั้งแต่เดือนนี้: กองกลางได้ "เฉพาะค่าเคลือบ" ไม่บวก 1,300 ของฟิล์มอีก
@@ -416,6 +416,16 @@ function runMigrations(d){
   (d.staff||[]).forEach(st=>{
     if(BURI.indexOf(st.name) >= 0 && +st.offDow !== 4){ st.offDow = 4; changed = true; }
   });
+  // พนักงานใหม่ที่คุณโอสั่งเพิ่มหลังระบบเริ่มใช้แล้ว — เติมให้เครื่องที่มี db อยู่ก่อนแล้ว
+  // (ไม่ใส่เลขบัญชี/ชื่อบัญชีในโค้ด เพราะไฟล์เผยแพร่เป็นสาธารณะ — กรอกในฟอร์มพนักงานแทน)
+  [{ name:"ภัทรสุดา", role:"แอดมิน" }].forEach(n=>{
+    if((d.staff||[]).some(st=>st.name===n.name)) return;
+    (d.staff = d.staff || []).push({ id: uid(), status:"active", name:n.name, role:n.role,
+      salary:0, houseAllow:0, commissionRole:"none", branch:"โคราช", position:n.role,
+      dept:"", phoneInt:"", startDate:"", nationalId:"", address:"",
+      bankName:"", bankNo:"", acctName:"" });
+    changed = true;
+  });
   const offOf = id => { const st=(d.staff||[]).find(x=>x.id===id); return (st && +st.offDow) || 0; };
   (d.attendance||[]).forEach(a=>{
     if(!a.date || String(a.date).slice(0,7) < OFFDOW_FROM) return;   // เดือนที่ปิดงวดแล้วห้ามแตะ
@@ -490,6 +500,7 @@ function seedDb(){
     mk("เจต","ผู้ช่วย",0,0,"none"),
     mk("นัน","ผู้ช่วย",0,0,"none"),
     mk("แนนนี่","ผู้ช่วย",0,0,"none"),
+    mk("ภัทรสุดา","แอดมิน",0,0,"none"),
     // ชุดคุณโอส่ง 1 ก.ย. 2569 — ทีมบุรีรัมย์ (เงินเดือนยังไม่ได้ = 0 ยังไม่เข้างวด · โอ๋เป็นรายวัน)
     mk("พี่ต๋อม","แอดมิน",0,0,"none"),
     mk("โอ๋","ผู้ช่วย",0,0,"none"),
