@@ -136,7 +136,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b34";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b35";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";
 const OFFDOW_FROM = "2026-09";   /* วันหยุดรายคน */
 /* คันฟิล์มเต็มคัน ตั้งแต่เดือนนี้: กองกลางได้ "เฉพาะค่าเคลือบ" ไม่บวก 1,300 ของฟิล์มอีก
@@ -510,12 +510,13 @@ function seedDb(){
   d.staff.forEach(s=>{ if(["พี่ต๋อม","โอ๋","ฟ้า"].includes(s.name)) s.branch = "บุรีรัมย์"; });
   // ประวัติ มิ.ย. 2569 (งานรถจาก Database3 + เช็คชื่อจากชีตค่าคอมจริง)
   const byName = {}; d.staff.forEach(s=>{ byName[s.name] = s.id; });
-  d.jobs = SEED_HISTORY.jobs.map(j=>({ id:uid(), date:j.d, plate:j.p||"", carModel:j.c||"",
+  const HIST = (typeof SEED_HISTORY !== "undefined" && SEED_HISTORY) || { jobs:[], att:{} };
+  d.jobs = HIST.jobs.map(j=>({ id:uid(), date:j.d, plate:j.p||"", carModel:j.c||"",
     size:j.sz||"", customer:j.cu||"", phone:j.ph||"", program:j.pr, filmSet:j.fs,
     amount:j.a, techId: j.t ? (byName["หม่าว"]||"") : "", note:"", source:"db3", branch:"โคราช" }));
   const roleByName = {}; d.staff.forEach(s=>{ roleByName[s.name] = s.role; });
-  Object.keys(SEED_HISTORY.att).forEach(date=>{
-    SEED_HISTORY.att[date].forEach(nm=>{
+  Object.keys(HIST.att||{}).forEach(date=>{
+    HIST.att[date].forEach(nm=>{
       if(!byName[nm]) return;
       // ตำแหน่ง ณ วันนั้น: ปอนด์เป็น "ช่าง" ถึง ก.ค. 2569 (ส.ค. ถูกปรับเป็นผู้ช่วย) — ประวัติต้องไม่เพี้ยน
       const histRole = (nm==="ปอนด์" && date < "2026-08-01") ? "ช่าง" : roleByName[nm];
@@ -524,7 +525,7 @@ function seedDb(){
   });
   return d;
 }
-/*SEED_HISTORY_START*/const SEED_JOBS=[];const SEED_ATT=[];/*SEED_HISTORY_END*/
+/*SEED_HISTORY_START*/const SEED_HISTORY = {"jobs":[],"att":{}};/*SEED_HISTORY_END*/
 
 /* ===== helper ===== */
 function uid(){ return Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4); }
