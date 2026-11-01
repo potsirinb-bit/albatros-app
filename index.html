@@ -136,7 +136,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b38";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b40";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";
 const OFFDOW_FROM = "2026-09";   /* วันหยุดรายคน */
 /* คันฟิล์มเต็มคัน ตั้งแต่เดือนนี้: กองกลางได้ "เฉพาะค่าเคลือบ" ไม่บวก 1,300 ของฟิล์มอีก
@@ -412,7 +412,7 @@ async function cloudBoot(){
 function runMigrations(d){
   let changed = false;
   // ทีมบุรีรัมย์หยุดพฤหัส (ก.ย. 2569 เป็นต้นไป) — คุณโอแก้รายคนเองได้ในฟอร์มพนักงาน
-  const BURI = ["ปอนด์","โอ๋","ฟ้า","แมน"];
+  const BURI = ["ปอนด์","โอ๋","ฟ้า","แมน","พี่ต๋อม"];   // พี่ต๋อมเพิ่ม 1 พ.ย. 2569 (คุณโอทัก: หยุดพฤหัสเหมือนทีมบุรีรัมย์)
   (d.staff||[]).forEach(st=>{
     if(BURI.indexOf(st.name) >= 0 && +st.offDow !== 4){ st.offDow = 4; changed = true; }
   });
@@ -1784,8 +1784,12 @@ function dayCommission(date){
   return { date, sales, salesKorat, salesBuri, pool, techEach, asstEach:asstEachAll, nTech:techs.length, nAsst:asstDivisor,
            special, present, roleOf, away, noComm };
 }
+/* รูปแบบค่าคอมที่ "กฎลาเกินเพดานไม่ใช้" — คุณโอสั่ง 1 พ.ย. 2569: "ไม่มีกฎลาสำหรับพี่ต๋อม"
+   (เธอเป็นแอดมินบุรีรัมย์ ได้ 1% ของยอดสาขา ไม่ได้ผูกกับการมาทำงานรายวันอยู่แล้ว)
+   ⚠️ หมวย (percent) ยังอยู่ใต้กฎลาตามเดิม — คุณโอยังไม่ได้สั่งเปลี่ยน */
+const LEAVE_EXEMPT = ["percentBuri"];
 function staffDayComm(st, dc){
-  if(dc.noComm && dc.noComm[st.id]) return 0;   // ลาเกิน LEAVE_LIMIT วันในเดือนนั้น = ไม่ได้ค่าคอมทุกรูปแบบ
+  if(dc.noComm && dc.noComm[st.id] && LEAVE_EXEMPT.indexOf(st.commissionRole) < 0) return 0;   // ลาเกิน LEAVE_LIMIT วัน = ไม่ได้ค่าคอม
   if(st.commissionRole==="special") return dc.special[st.id] || 0;                 // คอมรายคันตามงานที่ทำ
   // % ยอดขายบุรีรัมย์ — ไม่ผูกเช็คชื่อ ไม่นับเป็นตัวหารกองกลาง (เหมือนแบบ percent ของโคราช)
   if(st.commissionRole==="percentBuri")
@@ -1848,7 +1852,8 @@ function renderCommission(){
   const noCommM = noCommSet(p);
   h += tbl([{t:"พนักงาน"},{t:"ตำแหน่ง"},{t:"รูปแบบ"},{t:"ค่าคอมเดือนนี้",c:"num"},{c:"act"}],
     perStaff.slice().sort((a,b)=>b.comm-a.comm).map(x=>[
-      esc(x.st.name) + (noCommM[x.st.id] ? ' <span class="chip c-ปัด">ลา '+noCommM[x.st.id]+' วัน — ตัดค่าคอม</span>' : ''),
+      esc(x.st.name) + (noCommM[x.st.id] && LEAVE_EXEMPT.indexOf(x.st.commissionRole) < 0
+        ? ' <span class="chip c-ปัด">ลา '+noCommM[x.st.id]+' วัน — ตัดค่าคอม</span>' : ''),
       esc(x.st.role||"—"), esc(COMM_ROLES[x.st.commissionRole]||"—"), "<b>"+baht(x.comm)+"</b>",
       x.st.commissionRole==="special" ? lnk("รายคัน","openSpecialDetail('"+x.st.id+"','"+p+"')")
       : (x.st.commissionRole==="percent" || x.st.commissionRole==="percentBuri")
