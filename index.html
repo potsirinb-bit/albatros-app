@@ -136,7 +136,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b35";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b36";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";
 const OFFDOW_FROM = "2026-09";   /* วันหยุดรายคน */
 /* คันฟิล์มเต็มคัน ตั้งแต่เดือนนี้: กองกลางได้ "เฉพาะค่าเคลือบ" ไม่บวก 1,300 ของฟิล์มอีก
@@ -961,6 +961,8 @@ function openAttForm(id){
     + fld("เวลาเข้า", '<input class="inp" type="time" id="f-in" value="'+esc(r?r.timeIn:"")+'">')
     + fld("เวลาออก", '<input class="inp" type="time" id="f-out" value="'+esc(r?r.timeOut:"")+'">')
     + fld("", '<label class="lbl"><input type="checkbox" id="f-holiday"'+(r&&r.holiday?" checked":"")+'> วันหยุด (ชั่วโมงทั้งหมดคิด OT ×'+db.settings.otHolidayMult+')</label>')
+    + fld("OT กรอกมือ (ชั่วโมง)", '<input class="inp" type="number" step="0.5" min="0" id="f-otm" placeholder="เว้นว่าง = คิดจากเวลาเข้า-ออก" value="'+(r&&+r.otManual>0?r.otManual:"")+'">'
+        + '<span class="sub">ใส่เลขที่นี่แล้วระบบจะใช้ตัวนี้แทนการคำนวณจากเวลา — ใช้ตอนอยากกำหนด OT เอง ทั้งที่วันนั้นมีเวลาเข้า-ออกอยู่แล้ว</span>')
     + mfoot("saveAtt", id));
 }
 function saveAtt(id){
@@ -971,8 +973,11 @@ function saveAtt(id){
   const st = db.staff.find(x=>x.id===staffId);
   if(id){ const r = db.attendance.find(x=>x.id===id); if(r){
     if(r.staffId!==staffId) r.role = st ? st.role : "";   // เปลี่ยนคน = ตำแหน่งตามคนใหม่ (คนเดิมคง role ณ วันนั้น)
-    r.staffId=staffId; r.date=date; r.timeIn=timeIn; r.timeOut=timeOut; r.holiday=holiday; } }
-  else { db.attendance.unshift({ id:uid(), staffId, date, timeIn, timeOut, holiday, role: st ? st.role : "" }); }
+    r.staffId=staffId; r.date=date; r.timeIn=timeIn; r.timeOut=timeOut; r.holiday=holiday;
+    const om = +val("f-otm")||0; if(om>0) r.otManual = om; else delete r.otManual; } }
+  else { const om = +val("f-otm")||0;
+    db.attendance.unshift(Object.assign({ id:uid(), staffId, date, timeIn, timeOut, holiday, role: st ? st.role : "" },
+      om>0 ? { otManual: om } : {})); }
   save(); closeModal(); render();
 }
 
@@ -1330,7 +1335,7 @@ function addManualOt(){
   applyManualGrid(mcMonth || curMonth());   // เก็บติ๊กในกริด (มา/หยุด/บร) ก่อน — ติ๊กไม่หาย และ OT ได้ธงถูกต้อง
   let rec = db.attendance.find(a=>a.date===date && a.staffId===staffId);
   if(rec && (rec.timeIn || rec.timeOut)){
-    notify("วันนั้นมีเวลาเข้า-ออกอยู่แล้ว OT คิดจากเวลาโดยตรง — แก้ที่แท็บลงเวลาแทนครับ"); return;
+    notify("วันนั้นมีเวลาเข้า-ออกอยู่แล้ว (น่าจะลงเวลาผ่านไลน์)\nไปแท็บลงเวลา → กด แก้ ที่แถวนั้น → ใส่ช่อง \"OT กรอกมือ\" ได้เลย"); return;
   }
   const st = db.staff.find(s=>s.id===staffId);
   if(!rec){   // ยังไม่ได้เช็คชื่อวันนั้น → ถือว่ามา แล้วใส่ OT ให้เลย (อาทิตย์ = วันหยุด OT ×2 อัตโนมัติ)
