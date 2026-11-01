@@ -136,7 +136,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b40";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b41";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";
 const OFFDOW_FROM = "2026-09";   /* วันหยุดรายคน */
 /* คันฟิล์มเต็มคัน ตั้งแต่เดือนนี้: กองกลางได้ "เฉพาะค่าเคลือบ" ไม่บวก 1,300 ของฟิล์มอีก
@@ -1216,7 +1216,7 @@ function renderManualCheck(){
        : '')
     + '<span class="sub">ติ๊ก = มา · คอลัมน์ "หยุด" = วันหยุดร้าน (OT ×'+db.settings.otHolidayMult+') — '
     + '<b>วันอาทิตย์ติ๊กหยุดให้อัตโนมัติ</b> (แถวสีชมพู · เปิดพิเศษก็ติ๊กออกได้) · '
-    + 'บร = หมวยไปบุรีรัมย์ · ช่องจาง = มีเวลาเข้า-ออกจากระบบอื่น ล็อกไว้<br>'
+    + 'บร = หมวยไปบุรีรัมย์ · <b>ช่องขอบเหลือง = มีเวลาเข้า-ออก/OT อยู่ — ติ๊กออกได้ ระบบจะถามก่อนลบ</b><br>'
     + '<b>แถวเหลือง = วันหยุดทีมบุรีรัมย์ (พฤหัส)</b> — ช่อง "หยุด" คุมเฉพาะทีมโคราช คนที่หยุดวันอื่นระบบคิดให้เอง</span></div>';
   let grid = '<div class="card"><table class="tbl" style="font-size:12px"><thead><tr><th>วัน</th>'
     + staff.map(s=>'<th style="padding:6px 4px;text-align:center">'+esc(s.name)
@@ -1237,7 +1237,8 @@ function renderManualCheck(){
           const locked = r && (r.timeIn || r.timeOut);
           // ติ๊กปุ๊บบันทึกทันที (onchange) — ไม่ต้องรอปุ่มบันทึก ติ๊กเด้ง/หายเป็นไปไม่ได้อีก
           let cell = '<input type="checkbox" id="mc-'+day+'-'+s.id+'" onchange="mcTick('+day+',\''+s.id+'\',this.checked)"'
-            + (r ? " checked" : "") + (locked ? ' disabled title="มีเวลาเข้า-ออก แก้ที่แท็บลงเวลา"' : "") + '>';
+            + (r ? " checked" : "")
+            + (locked ? ' title="มีเวลาเข้า-ออก/OT — ติ๊กออกได้ ระบบจะถามยืนยันก่อนลบ" style="outline:2px solid #fcd34d"' : "") + '>';
           if(s.commissionRole==="percent")
             cell += '<div style="font-size:10px;white-space:nowrap"><input type="checkbox" id="mcb-'+day+'-'+s.id+'" onchange="mcbTick('+day+',\''+s.id+'\',this.checked)"'
               + (r && r.branch==="บุรีรัมย์" ? " checked" : "") + '> บร</div>';
@@ -1283,9 +1284,16 @@ function mcTick(day, staffId, on){
       holiday: offDowOf(staffId)===0 && hEl ? hEl.checked : staffHoliday(staffId, d),
       branch: bEl && bEl.checked ? "บุรีรัมย์" : "" });
   } else if(!on && rec){
+    // แถวที่มีเวลาเข้า-ออก/OT ไม่ลบเงียบๆ — ถามก่อน แล้วลบให้จริง
+    // (เดิมเด้งติ๊กกลับเฉยๆ = ทางตัน · เคสจริง 1 พ.ย.: "ผมเอาออกแต่ระบบไม่เอาออก")
     if(rec.timeIn || rec.timeOut || +rec.otManual){
-      notify(+rec.otManual ? "วันนั้นมี OT อยู่ — ลบ OT ที่ตารางล่างก่อนครับ" : "วันนั้นมีเวลาเข้า-ออกอยู่ แก้ที่แท็บลงเวลาครับ");
       const el = document.getElementById("mc-"+day+"-"+staffId); if(el) el.checked = true;
+      const what = [];
+      if(rec.timeIn || rec.timeOut) what.push("เวลา "+(rec.timeIn||"—")+"–"+(rec.timeOut||"—"));
+      if(+rec.otManual) what.push("OT กรอกมือ "+rec.otManual+" ชม.");
+      appConfirm("วันที่ "+day+" ของ "+staffName(staffId)+" มี "+what.join(" · ")+" อยู่\nเอาออกทั้งแถวเลยไหม?",
+        ()=>{ db.attendance = db.attendance.filter(a=>a.id!==rec.id); save(); render();
+              notify("เอา "+staffName(staffId)+" ออกจากวันที่ "+day+" แล้ว"); }, "เอาออก");
       return;
     }
     db.attendance = db.attendance.filter(a=>a.id!==rec.id);
