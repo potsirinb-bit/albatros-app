@@ -136,7 +136,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b37";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b38";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";
 const OFFDOW_FROM = "2026-09";   /* วันหยุดรายคน */
 /* คันฟิล์มเต็มคัน ตั้งแต่เดือนนี้: กองกลางได้ "เฉพาะค่าเคลือบ" ไม่บวก 1,300 ของฟิล์มอีก
@@ -645,10 +645,11 @@ const peeked = { salary:{}, acct:{} };  // แถวที่กด "แสด�
 
 const STAFF_ROLES = ["ช่าง","ผู้ช่วย","แอดมิน"];   // แอดมิน = ไม่อยู่ในตัวหารกองกลาง (engine กรองเฉพาะ ช่าง/ผู้ช่วย)
 const COMM_ROLES = {
-  pool:    "กองกลาง (หารต่อหัว)",
-  special: "ช่างพิเศษ (คอมรายคัน)",
-  percent: "% ยอดขายทั้งวัน",
-  none:    "ไม่รับค่าคอม"
+  pool:        "กองกลาง (หารต่อหัว)",
+  special:     "ช่างพิเศษ (คอมรายคัน)",
+  percent:     "% ยอดขายโคราช",
+  percentBuri: "% ยอดขายบุรีรัมย์",      // พี่ต๋อม แอดมินบุรีรัมย์ (คุณโอสั่ง 1 พ.ย. 2569)
+  none:        "ไม่รับค่าคอม"
 };
 
 function setRole(v){ currentRole = v; render(); }
@@ -1779,12 +1780,16 @@ function dayCommission(date){
   const asstEachAll = asstDivisor ? pool*sh.asst/asstDivisor : 0;
   // 1% ของ percent คิดจากยอดโคราชเท่านั้น (คุณโอเคาะ 1 ก.ย.) — งานที่ไม่ติดสาขาบุรีรัมย์นับเป็นโคราช
   const salesKorat = jobs.filter(j=>j.branch!=="บุรีรัมย์").reduce((t,j)=>t+(+j.amount||0),0);
-  return { date, sales, salesKorat, pool, techEach, asstEach:asstEachAll, nTech:techs.length, nAsst:asstDivisor,
+  const salesBuri = sales - salesKorat;
+  return { date, sales, salesKorat, salesBuri, pool, techEach, asstEach:asstEachAll, nTech:techs.length, nAsst:asstDivisor,
            special, present, roleOf, away, noComm };
 }
 function staffDayComm(st, dc){
   if(dc.noComm && dc.noComm[st.id]) return 0;   // ลาเกิน LEAVE_LIMIT วันในเดือนนั้น = ไม่ได้ค่าคอมทุกรูปแบบ
   if(st.commissionRole==="special") return dc.special[st.id] || 0;                 // คอมรายคันตามงานที่ทำ
+  // % ยอดขายบุรีรัมย์ — ไม่ผูกเช็คชื่อ ไม่นับเป็นตัวหารกองกลาง (เหมือนแบบ percent ของโคราช)
+  if(st.commissionRole==="percentBuri")
+    return dc.salesBuri * db.settings.rates.percentRate;
   if(st.commissionRole==="percent"){
     // สองก้อนบวกกัน ไม่ใช่สลับกัน (คุณโอแก้ 1 ต.ค. 2569 — เดิมวันไป บร งด 1% ทำให้ยอดเดือนขาด)
     const pct  = dc.salesKorat * db.settings.rates.percentRate;        // 1% ยอดโคราช — ได้ทุกวัน ไม่ผูกเช็คชื่อ
@@ -1846,7 +1851,8 @@ function renderCommission(){
       esc(x.st.name) + (noCommM[x.st.id] ? ' <span class="chip c-ปัด">ลา '+noCommM[x.st.id]+' วัน — ตัดค่าคอม</span>' : ''),
       esc(x.st.role||"—"), esc(COMM_ROLES[x.st.commissionRole]||"—"), "<b>"+baht(x.comm)+"</b>",
       x.st.commissionRole==="special" ? lnk("รายคัน","openSpecialDetail('"+x.st.id+"','"+p+"')")
-      : x.st.commissionRole==="percent" ? lnk("รายวัน","openPercentDetail('"+x.st.id+"','"+p+"')") : ""
+      : (x.st.commissionRole==="percent" || x.st.commissionRole==="percentBuri")
+          ? lnk("รายวัน","openPercentDetail('"+x.st.id+"','"+p+"')") : ""
     ]));
 
   h += '<div class="sub">รายวัน (แบบชีต Commission)</div>';
@@ -1864,12 +1870,13 @@ function renderCommission(){
 function openPercentDetail(staffId, period){
   const st = db.staff.find(x=>x.id===staffId); if(!st) return;
   const rate = db.settings.rates.percentRate;
+  const buri = st.commissionRole === "percentBuri";   // คิดจากยอดบุรีรัมย์ ไม่มีก้อนส่วนแบ่งผู้ช่วย
   const days = monthDates(period).map(dayCommission);
   if(!days.length){ openModal("รายวัน — "+esc(st.name), empty("เดือนนี้ยังไม่มีงานรถ")); return; }
   let gotPct = 0, gotAsst = 0, nAway = 0;
   const rows = days.map(dc=>{
-    const away = !!(dc.present[st.id] && dc.away[st.id]);
-    const pct  = dc.salesKorat * rate;
+    const away = !buri && !!(dc.present[st.id] && dc.away[st.id]);
+    const pct  = (buri ? dc.salesBuri : dc.salesKorat) * rate;
     const asst = away ? dc.asstEach : 0;
     const got  = pct + asst;
     gotPct += pct;
@@ -1877,7 +1884,8 @@ function openPercentDetail(staffId, period){
     const salesBur = dc.sales - dc.salesKorat;
     return [
       thDate(dc.date),
-      baht(dc.salesKorat) + (salesBur ? ' <span class="sub">+บร '+baht(salesBur)+'</span>' : ''),
+      baht(buri ? dc.salesBuri : dc.salesKorat)
+        + '<div class="sub">' + (buri ? 'โคราช '+baht(dc.salesKorat) : 'บร '+baht(salesBur)) + '</div>',
       baht(dc.pool),
       away ? chip("ไปบุรีรัมย์","c-ใหม่") : chip("อยู่โคราช","c-เสร็จ"),
       "<b>"+baht(Math.round(pct))+"</b>",
@@ -1886,16 +1894,16 @@ function openPercentDetail(staffId, period){
     ];
   });
   const total = gotPct + gotAsst;
-  const flat  = days.reduce((t,dc)=>t+dc.salesKorat*rate, 0);
+  const flat  = days.reduce((t,dc)=>t+(buri ? dc.salesBuri : dc.salesKorat)*rate, 0);
   let body = '<div class="kpis">'
-    + '<div class="kpi"><span class="lbl">'+(rate*100)+'% ยอดขายโคราชทั้งเดือน (ได้ทุกวัน)</span><b>'+baht(Math.round(gotPct))+'</b></div>'
-    + '<div class="kpi"><span class="lbl">วันไปบุรีรัมย์ ('+nAway+' วัน) — ส่วนแบ่งผู้ช่วย <b>เพิ่ม</b></span><b>'+baht(Math.round(gotAsst))+'</b></div>'
+    + '<div class="kpi"><span class="lbl">'+(rate*100)+'% ยอดขาย'+(buri?"บุรีรัมย์":"โคราช")+'ทั้งเดือน (ได้ทุกวัน)</span><b>'+baht(Math.round(gotPct))+'</b></div>'
+    + (buri ? '' : '<div class="kpi"><span class="lbl">วันไปบุรีรัมย์ ('+nAway+' วัน) — ส่วนแบ่งผู้ช่วย <b>เพิ่ม</b></span><b>'+baht(Math.round(gotAsst))+'</b></div>')
     + '<div class="kpi hot"><span class="lbl">รวมทั้งเดือน</span><b>'+baht(Math.round(total))+'</b>'
     + '<span class="sub">'+(rate*100)+'% ล้วน '+baht(Math.round(flat))+' + ส่วนแบ่งผู้ช่วย '+baht(Math.round(gotAsst))+'</span></div>'
     + '</div>';
   body += tbl([{t:"วันที่"},{t:"ยอดขาย",c:"num"},{t:"กองกลาง",c:"num"},{t:"อยู่ไหน"},
-               {t:(rate*100)+"% โคราช",c:"num"},{t:"ผู้ช่วย (วันไป บร)",c:"num"},{t:"รวมวันนี้",c:"num"}], rows);
-  body += '<div class="sub">กติกา: ได้ '+(rate*100)+'% ของยอดขาย<b>โคราช</b>ทุกวันเต็มเดือน (ไม่ผูกเช็คชื่อ) · วันที่ติ๊ก "บร" ได้<b>ส่วนแบ่งผู้ช่วยเพิ่ม</b>เหมือนผู้ช่วยช่างทั่วไป · ยอดบุรีรัมย์ไม่เข้าฐาน '+(rate*100)+'% แต่คันบุรีรัมย์เข้ากองกลางให้ทุกคนหาร</div>';
+               {t:(rate*100)+"% "+(buri?"บุรีรัมย์":"โคราช"),c:"num"},{t:"ผู้ช่วย (วันไป บร)",c:"num"},{t:"รวมวันนี้",c:"num"}], rows);
+  body += '<div class="sub">กติกา: ได้ '+(rate*100)+'% ของยอดขาย<b>'+(buri?"บุรีรัมย์":"โคราช")+'</b>ทุกวันเต็มเดือน (ไม่ผูกเช็คชื่อ) · วันที่ติ๊ก "บร" ได้<b>ส่วนแบ่งผู้ช่วยเพิ่ม</b>เหมือนผู้ช่วยช่างทั่วไป · ยอดบุรีรัมย์ไม่เข้าฐาน '+(rate*100)+'% แต่คันบุรีรัมย์เข้ากองกลางให้ทุกคนหาร</div>';
   openModal("รายวัน — "+esc(st.name)+" · "+beMonth(period), body);
 }
 
