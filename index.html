@@ -136,7 +136,7 @@ const OT_HOLIDAY_MULT = 2;               // ทำงานวันหยุด
 const RATE_NOTE = "อัตราตัวอย่าง โปรดตรวจปีปัจจุบัน";
 
 /* ===== db เป็น SSOT ===== */
-const APP_VER = "b36";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
+const APP_VER = "b37";   // บัมป์ทุกครั้งที่เผยแพร่ — ไว้เช็คว่าหน้าที่เปิดอยู่เป็นเวอร์ชันล่าสุดหรือยัง
 const DB_KEY = "albatrosERP.db.v6";
 const OFFDOW_FROM = "2026-09";   /* วันหยุดรายคน */
 /* คันฟิล์มเต็มคัน ตั้งแต่เดือนนี้: กองกลางได้ "เฉพาะค่าเคลือบ" ไม่บวก 1,300 ของฟิล์มอีก
@@ -927,14 +927,31 @@ function presentIds(date){
   return set;
 }
 
+/* ตัวกรองหน้าลงเวลา (คุณโอ 1 พ.ย.: "มันแก้ไขลงเวลายังไง" + "รายคน")
+   เดิมลิสต์ทุกแถวทุกเดือนรวมกัน — พอมีเช็คชื่อจากไลน์เข้ามาเป็นร้อยแถว หาแถวที่จะแก้ไม่เจอ */
+let attMonth = "", attStaff = "";
+function setAttMonth(v){ attMonth = v; render(); }
+function setAttStaff(v){ attStaff = v; render(); }
 function renderAttendance(){
+  const p = attMonth || curMonth();
   let h = head("ลงเวลา", "เช็คชื่อรายวัน (ฐานหารค่าคอม) + เข้า-ออก/OT", "openAttForm");
   h += '<div class="bar"><button class="btn" onclick="openCheckin(\''+todayStr()+'\')">✓ เช็คชื่อรายวัน</button>'
     + '<button class="btn ghost" onclick="openMonthCheckin(\''+curMonth()+'\')">เช็คชื่อย้อนหลังทั้งเดือน</button>'
     + '<button class="btn ghost" onclick="openLineImport()">นำเข้าเช็คชื่อจากไลน์ (CSV)</button></div>';
+  h += '<div class="bar"><span class="lbl">เดือน</span>'
+    + '<input class="inp" type="month" value="'+esc(p)+'" onchange="setAttMonth(this.value)">'
+    + '<span class="lbl">พนักงาน</span>'
+    + '<select class="inp" onchange="setAttStaff(this.value)"><option value="">ทุกคน</option>'
+    + db.staff.filter(x=>x.status!=="inactive").map(x=>
+        '<option value="'+x.id+'"'+(x.id===attStaff?" selected":"")+'>'+esc(x.name)+'</option>').join('')
+    + '</select></div>';
   if(!db.attendance.length) return h + empty("ยังไม่มีการลงเวลา — กดปุ่มเช็คชื่อรายวัน หรือ + เพิ่ม เพื่อบันทึกพร้อมเวลา");
+  const list = db.attendance.filter(r => monthOf(r.date)===p && (!attStaff || r.staffId===attStaff));
+  if(!list.length) return h + empty("เดือน "+beMonth(p)+(attStaff ? " ของ "+esc(staffName(attStaff)) : "")+" ยังไม่มีการลงเวลา");
+  const otSum = list.reduce((t,r)=>t+otHours(r),0);
+  h += '<div class="sub">'+list.length+' แถว · OT รวม '+otSum.toFixed(1)+' ชม.</div>';
   const cols = [{t:"วันที่"},{t:"พนักงาน"},{t:"เข้า"},{t:"ออก"},{t:"ชั่วโมง",c:"num"},{t:"OT",c:"num"},{t:""},{c:"act"}];
-  const rows = db.attendance.slice().sort((a,b)=> (b.date||"").localeCompare(a.date||"")).map(r=>{
+  const rows = list.slice().sort((a,b)=> (b.date||"").localeCompare(a.date||"")).map(r=>{
     const o = otSplit(r);
     return [
       thDate(r.date),
